@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 
 _SUBSONIC_KEY = "subsonic"
 _LLM_KEY = "llm"
+_ONBOARDING_KEY = "onboarding"
 
 
 class ConfigStore(ABC):
@@ -52,6 +53,19 @@ class ConfigStore(ABC):
 
     def clear_llm(self) -> None:
         self.delete(_LLM_KEY)
+
+    # -- 启动引导状态 --
+    def get_onboarding(self) -> dict[str, Any] | None:
+        return self.get(_ONBOARDING_KEY)
+
+    def is_onboarding_completed(self) -> bool:
+        return bool((self.get(_ONBOARDING_KEY) or {}).get("completed"))
+
+    def set_onboarding_completed(self, completed_at: str) -> None:
+        self.set(_ONBOARDING_KEY, {"completed": True, "completed_at": completed_at})
+
+    def clear_onboarding(self) -> None:
+        self.delete(_ONBOARDING_KEY)
 
 
 class JsonFileConfigStore(ConfigStore):

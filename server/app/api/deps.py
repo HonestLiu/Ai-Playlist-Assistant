@@ -9,12 +9,14 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlmodel import Session
 
 from app.core.config import Settings, get_settings
 from app.database.config_store import ConfigStore, JsonFileConfigStore
 from app.database.engine import get_session
+from app.database.models import AppUser
+from app.services.auth_service import AuthError, AuthService
 from app.services.browse_service import BrowseService
 from app.services.daily_mix_service import DailyMixService
 from app.services.library_sync_service import LibrarySyncService
@@ -40,6 +42,52 @@ def get_config_store() -> ConfigStore:
 
 
 ConfigStoreDep = Annotated[ConfigStore, Depends(get_config_store)]
+
+
+# ---------------------------------------------------------------- 认证
+def get_auth_service(settings: SettingsDep) -> AuthService:
+    return AuthService(settings.auth.session_ttl_hours)
+
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+def session_token(request: Request, settings: SettingsDep) -> str | None:
+    """从 Cookie 中取出会话令牌。"""
+
+    return request.cookies.get(settings.auth.cookie_name)
+
+
+SessionTokenDep = Annotated[str | None, Depends(session_token)]
+
+
+def get_current_user(
+    token: SessionTokenDep,
+    session: SessionDep,
+    auth_service: AuthServiceDep,
+    settings: SettingsDep,
+) -> AppUser | None:
+    """可选当前用户：鉴权关闭或未登录时为 None。"""
+
+    if not settings.auth.enabled:
+        return None
+    return auth_service.resolve(session, token)
+
+
+CurrentUserDep = Annotated[AppUser | None, Depends(get_current_user)]
+
+
+def require_current_user(user: CurrentUserDep, settings: SettingsDep) -> AppUser:
+    """强制登录。鉴权关闭时此类接口没有意义，同样拒绝。"""
+
+    if not settings.auth.enabled:
+        raise AuthError("当前部署已关闭登录校验，账号相关操作不可用", status_code=400)
+    if user is None:
+        raise AuthError()
+    return user
+
+
+RequireUserDep = Annotated[AppUser, Depends(require_current_user)]
 
 
 def get_subsonic_settings_service(

@@ -6,10 +6,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from collections.abc import Awaitable, Callable
+
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session
 
 from app import __version__
 from app.api.deps import _config_store_singleton
@@ -17,7 +20,8 @@ from app.api.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.logging import configure_logging, get_logger
-from app.database.engine import init_db
+from app.database.engine import _engine, init_db
+from app.services.auth_service import AuthService
 from app.services.llm_settings_service import LLMSettingsService
 from app.services.playlist_service import PlaylistService
 from app.services.recommendation_service import RecommendationService
@@ -46,6 +50,72 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     scheduler.shutdown()
     logger.info("服务已停止")
+
+
+# 无需登录即可访问的 API 路径（相对 api_prefix）。
+# 只放行「决定去哪个页面」和「怎么登录」所必需的最小集合。
+_PUBLIC_API_PATHS = frozenset(
+    {
+        "/health",
+        "/auth/session",
+        "/auth/login",
+        "/auth/logout",
+        "/auth/bootstrap",
+    }
+)
+
+
+def _register_auth_middleware(app: FastAPI, settings: Settings) -> None:
+    """Cookie 会话鉴权。
+
+    只拦 API 前缀下的请求：前端静态资源必须放行，否则登录页自己都加载不出来；
+    未登录时由 SPA 自行跳转到 /login。
+    """
+
+    if not settings.auth.enabled:
+        logger.warning("AUTH__ENABLED=false，已关闭登录校验（仅建议在受信内网调试时使用）")
+        return
+
+    api_prefix = settings.api_prefix.rstrip("/")
+    public_paths = {f"{api_prefix}{path}" for path in _PUBLIC_API_PATHS}
+    auth_service = AuthService(settings.auth.session_ttl_hours)
+    cookie_name = settings.auth.cookie_name
+
+    @app.middleware("http")
+    async def _auth_guard(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        path = request.url.path
+        if (
+            request.method == "OPTIONS"  # CORS 预检
+            or not path.startswith(api_prefix)  # 静态资源 / SPA / docs
+            or path in public_paths
+        ):
+            return await call_next(request)
+
+        token = request.cookies.get(cookie_name)
+        with Session(_engine) as session:
+            user = auth_service.resolve(session, token)
+            # 一个账号都没有时不该把人挡在门外，否则引导流程无从开始
+            if user is None and auth_service.needs_bootstrap(session):
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "code": "needs_bootstrap",
+                        "message": "系统尚未初始化，请先完成启动引导",
+                        "detail": None,
+                    },
+                )
+        if user is None:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "code": "unauthorized",
+                    "message": "未登录或登录已过期",
+                    "detail": None,
+                },
+            )
+        return await call_next(request)
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
@@ -84,6 +154,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    # 注意：中间件按「后注册先执行」的顺序包裹，鉴权放在 CORS 之后注册，
+    # 这样 401 响应同样会带上 CORS 头，浏览器才读得到错误码。
+    _register_auth_middleware(app, settings)
     _register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_prefix)
     _mount_web(app, settings)

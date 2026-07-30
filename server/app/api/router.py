@@ -8,10 +8,12 @@ from app.api.v1 import (
     ai,
     albums,
     artists,
+    auth,
     library,
     play_history,
     playlists,
     settings,
+    setup,
     songs,
     stream,
     subsonic,
@@ -20,6 +22,8 @@ from app.api.v1 import (
 
 api_router = APIRouter()
 api_router.include_router(system.router)
+api_router.include_router(auth.router)
+api_router.include_router(setup.router)
 api_router.include_router(settings.router)
 api_router.include_router(subsonic.router)
 api_router.include_router(stream.router)

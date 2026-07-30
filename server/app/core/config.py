@@ -71,6 +71,24 @@ class LLMSettings(BaseModel):
     max_tokens: int | None = None
 
 
+class AuthSettings(BaseModel):
+    """本应用自身的登录校验（与 Subsonic 账号无关）。
+
+    会话走 HttpOnly Cookie —— ``<audio>`` / ``<img>`` 这类由浏览器直接发起的
+    请求没法带自定义 header，只有 cookie 能覆盖串流与封面接口。
+
+    可用环境变量覆盖：``AUTH__ENABLED`` / ``AUTH__SESSION_TTL_HOURS`` /
+    ``AUTH__COOKIE_SECURE`` 等。仅在受信内网调试时才建议关掉 enabled。
+    """
+
+    enabled: bool = True
+    session_ttl_hours: int = 24 * 30
+    cookie_name: str = "apa_session"
+    # 走 HTTPS 部署时置为 true；默认 false 以便 http://localhost 直接可用
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
+
+
 class SchedulerSettings(BaseModel):
     """定时任务：默认每天 09:00（Asia/Shanghai）自动刷新「每日推荐」。
 
@@ -100,6 +118,7 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     subsonic: SubsonicSettings = Field(default_factory=SubsonicSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
 
     @property
