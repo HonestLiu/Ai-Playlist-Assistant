@@ -1,0 +1,103 @@
+name: Docker 多架构构建
+
+# 触发条件：
+# - push 到 main：构建并推送 latest + sha 标签
+# - push 版本标签 v*：构建并推送语义化版本标签
+# - Pull Request：仅构建验证，不推送
+# - 手动触发：可选择是否推送
+on:
+  push:
+    branches: ["main", "master"]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:
+    inputs:
+      push:
+        description: "构建后推送到 GHCR"
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# GITHUB_TOKEN 权限：推送镜像到 GHCR 需要 packages:write
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 构建镜像（amd64 / arm64 / arm-v7）
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # QEMU：让 x64 Runner 能交叉构建 ARM 镜像
+      # （前端 Node 阶段固定跑在 BUILDPLATFORM 上，不受模拟拖累）
+      - name: 设置 QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,arm
+
+      - name: 设置 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        # PR 只验证构建，不需要登录/推送
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 生成镜像标签与元数据
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # main 分支 → latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            # 分支名（main/master 推送时）
+            type=ref,event=branch
+            # v1.2.3 → 1.2.3 / 1.2 / 1
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # 提交 sha 短标签，便于回滚定位
+            type=sha,prefix=sha-,format=short
+
+      - name: 构建并推送（linux/amd64, linux/arm64, linux/arm/v7）
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          # amd64: 常规 x64 Linux 服务器
+          # arm64: Apple Silicon（Mac 上跑 Linux 容器）/ 树莓派4+ 64位 / ARM 云主机
+          # arm/v7: 常规 32 位 ARM Linux（树莓派2/3、旧 NAS 等）
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push) }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions 层缓存，加速后续构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: 输出镜像信息
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "### 镜像已推送 :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "平台：linux/amd64, linux/arm64, linux/arm/v7" >> "$GITHUB_STEP_SUMMARY"
