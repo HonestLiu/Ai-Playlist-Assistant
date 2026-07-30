@@ -10,11 +10,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import __version__
+from app.api.deps import _config_store_singleton
 from app.api.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.core.logging import configure_logging, get_logger
 from app.database.engine import init_db
+from app.services.llm_settings_service import LLMSettingsService
+from app.services.playlist_service import PlaylistService
+from app.services.recommendation_service import RecommendationService
+from app.services.scheduler_service import SchedulerService
+from app.services.settings_service import SubsonicSettingsService
 
 logger = get_logger(__name__)
 
@@ -23,8 +29,20 @@ logger = get_logger(__name__)
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
     init_db()
+
+    # 构造调度器（复用与请求相同的服务单例），在应用生命周期内自动刷新每日推荐
+    store = _config_store_singleton()
+    subsonic_settings = SubsonicSettingsService(settings, store)
+    llm_settings = LLMSettingsService(settings, store)
+    rec_service = RecommendationService(llm_settings, subsonic_settings)
+    playlist_service = PlaylistService(subsonic_settings)
+    scheduler = SchedulerService(settings.scheduler, rec_service, playlist_service)
+    app.state.scheduler = scheduler
+    scheduler.start()
+
     logger.info("%s v%s 启动，API 前缀 %s", settings.app_name, __version__, settings.api_prefix)
     yield
+    scheduler.shutdown()
     logger.info("服务已停止")
 
 

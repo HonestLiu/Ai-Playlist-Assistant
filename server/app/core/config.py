@@ -68,6 +68,18 @@ class LLMSettings(BaseModel):
     max_tokens: int | None = None
 
 
+class SchedulerSettings(BaseModel):
+    """定时任务：默认每天 09:00（Asia/Shanghai）自动刷新「每日推荐」。
+
+    可用环境变量覆盖：``SCHEDULER__ENABLED`` / ``SCHEDULER__DAILY_MIX_HOUR`` /
+    ``SCHEDULER__DAILY_MIX_MINUTE``。
+    """
+
+    enabled: bool = True
+    daily_mix_hour: int = 9
+    daily_mix_minute: int = 0
+
+
 class Settings(BaseSettings):
     """应用总配置。"""
 
@@ -85,6 +97,7 @@ class Settings(BaseSettings):
     server: ServerSettings = Field(default_factory=ServerSettings)
     subsonic: SubsonicSettings = Field(default_factory=SubsonicSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
+    scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
 
     @property
     def base_dir(self) -> Path:
