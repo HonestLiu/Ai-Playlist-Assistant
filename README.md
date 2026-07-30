@@ -71,6 +71,39 @@ make web      # http://localhost:5173
 也可以不改 `.env`，直接在网页「设置」页填连接信息并保存，
 运行时配置会写入 `server/data/runtime_config.json` 并覆盖 `.env` 默认值。
 
+## Docker 部署（多架构）
+
+单镜像同时提供 API 与 Web（后端托管 `web/dist`，`SERVER__WEB_DIST` 控制）。
+
+```bash
+# 本地构建（宿主架构）
+docker build -t ai-playlist .
+
+# 运行：数据（SQLite / 运行时配置）挂卷持久化
+docker run -d --name ai-playlist \
+  -p 8000:8000 \
+  -v ai-playlist-data:/app/data \
+  -e TZ=Asia/Shanghai \
+  ai-playlist
+# 打开 http://localhost:8000 即可使用（含 Web 界面）
+```
+
+### GitHub Actions 自动构建
+
+`.github/workflows/docker.yml` 会构建三个平台的镜像并推送到 GHCR：
+
+| 平台 | 适用场景 |
+| --- | --- |
+| `linux/amd64` | 常规 x64 Linux 服务器 |
+| `linux/arm64` | Apple Silicon 跑 Linux 容器、树莓派 4+（64 位）、ARM 云主机 |
+| `linux/arm/v7` | 常规 32 位 ARM Linux（树莓派 2/3、旧款 NAS 等） |
+
+触发规则：push `main` → `latest` + `sha-xxxxxxx`；打 tag `v1.2.3` → `1.2.3` / `1.2` / `1`；PR 仅验证构建不推送；也可手动触发（可勾选是否推送）。
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:latest   # 自动匹配本机架构
+```
+
 ## Phase 1 已实现的接口
 
 | 方法 | 路径 | 说明 |
