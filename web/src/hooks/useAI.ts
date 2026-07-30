@@ -56,6 +56,26 @@ export function useLLMConfig() {
   return useQuery({ queryKey: aiKeys.llmConfig, queryFn: aiApi.getLLMConfig });
 }
 
+export function useSchedulerStatus() {
+  return useQuery({
+    queryKey: aiKeys.schedulerStatus,
+    queryFn: aiApi.getSchedulerStatus,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useTriggerDailyMix() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => aiApi.triggerDailyMix(),
+    onSuccess: () => {
+      // 手动触发是异步后台任务，稍后轮询状态即可看到 last_run 更新
+      setTimeout(() => qc.invalidateQueries({ queryKey: aiKeys.schedulerStatus }), 1500);
+      qc.invalidateQueries({ queryKey: aiKeys.playlists });
+    },
+  });
+}
+
 export function useSaveLLMConfig() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,4 +1,4 @@
-import { ListMusic, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { Clock, ListMusic, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -7,6 +7,8 @@ import {
   useDeletePlaylist,
   usePlaylists,
   useRenamePlaylist,
+  useSchedulerStatus,
+  useTriggerDailyMix,
 } from "@/hooks/useAI";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,11 +21,28 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+/** 把调度器的 ISO 时间渲染成「今天/明天 09:00」这类本地化文案。 */
+function fmtNextRun(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  const hh = d.toTimeString().slice(0, 5);
+  if (sameDay) return `今天 ${hh}`;
+  if (isTomorrow) return `明天 ${hh}`;
+  return `${d.toLocaleDateString("zh-CN")} ${hh}`;
+}
+
 export function PlaylistsPage() {
   const { data, isLoading, isError } = usePlaylists();
   const del = useDeletePlaylist();
   const rename = useRenamePlaylist();
   const dailyMix = useDailyMix();
+  const scheduler = useSchedulerStatus();
+  const trigger = useTriggerDailyMix();
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
@@ -45,6 +64,9 @@ export function PlaylistsPage() {
     setEditingId(null);
   };
 
+  const st = scheduler.data;
+  const last = st?.last_run;
+
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-4 flex items-start justify-between gap-4">
@@ -65,6 +87,61 @@ export function PlaylistsPage() {
           {dailyMix.isPending ? "生成中…" : "生成今日推荐"}
         </Button>
       </div>
+
+      {/* 自动调度状态卡片 */}
+      <Card className="mb-4 bg-accent/40">
+        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 py-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            <div className="text-sm">
+              <div className="font-medium">
+                每日推荐 · 自动调度
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${
+                    st?.enabled
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {st?.enabled ? "已开启" : "已关闭"}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                下次自动生成：{fmtNextRun(st?.next_run ?? null)}（本地时间）
+              </div>
+            </div>
+          </div>
+
+          {last ? (
+            <div className="text-xs text-muted-foreground">
+              上次运行：{last.at.slice(5).replace("T", " ")}
+              {last.ok ? (
+                <span>
+                  {" "}
+                  · {last.action === "refresh" ? "已刷新" : last.action === "create" ? "已新建" : "无歌曲"}
+                  {last.playlist ? `「${last.playlist}」` : ""}（{last.songs ?? 0} 首）
+                </span>
+              ) : (
+                <span className="text-destructive"> · 失败：{last.error}</span>
+              )}
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">尚未自动运行过</div>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            disabled={trigger.isPending}
+            onClick={() => trigger.mutate()}
+            title="立即跑一次定时任务（与开关无关）"
+          >
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            {trigger.isPending ? "触发中…" : "立即触发调度任务"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {!data || data.length === 0 ? (
         <Card>

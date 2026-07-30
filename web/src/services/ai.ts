@@ -10,6 +10,8 @@ import type {
   PlaylistDetail,
   PlaylistRenameIn,
   RecommendationResult,
+  SchedulerStatus,
+  SchedulerTriggerResult,
 } from "@/types/ai";
 
 export interface RecommendVars {
@@ -35,6 +37,9 @@ export const aiApi = {
     request<LLMConfigOut>("/settings/llm", { method: "PUT", body }),
   testLLMConfig: (body: LLMConfigIn) =>
     request<LLMTestResult>("/settings/llm/test", { method: "POST", body }),
+  getSchedulerStatus: () => request<SchedulerStatus>("/ai/scheduler/status"),
+  triggerDailyMix: () =>
+    request<SchedulerTriggerResult>("/ai/scheduler/trigger", { method: "POST" }),
 };
 
 export const aiKeys = {
@@ -42,4 +47,5 @@ export const aiKeys = {
   playlist: (id: number) => ["playlists", id] as const,
   llmConfig: ["settings", "llm"] as const,
   dailyMix: ["daily-mix"] as const,
+  schedulerStatus: ["scheduler", "status"] as const,
 };

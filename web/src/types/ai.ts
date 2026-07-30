@@ -48,6 +48,27 @@ export interface PlaylistRenameIn {
   name: string;
 }
 
+export interface SchedulerStatus {
+  enabled: boolean;
+  running: boolean;
+  daily_mix_hour: number;
+  daily_mix_minute: number;
+  next_run: string | null;
+  last_run: {
+    ok: boolean;
+    at: string;
+    theme?: string;
+    songs?: number;
+    playlist?: string | null;
+    action?: string;
+    error?: string;
+  } | null;
+}
+
+export interface SchedulerTriggerResult {
+  triggered: boolean;
+}
+
 export interface RecommendationResult {
   query: string;
   intent: PlaylistIntent;
