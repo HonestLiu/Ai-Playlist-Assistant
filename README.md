@@ -2,7 +2,7 @@
 
 连接 Subsonic 音乐服务器，用大模型按自然语言生成歌单，并支持每日 Daily Mix。
 
-当前进度：**Phase 7 · 登录校验 + 容器启动引导已完成**（账号体系 / 会话 / 首次启动向导）。
+功能已完整就绪：账号登录与启动引导、Subsonic 音乐库同步、AI 自然语言建歌单、每日推荐（Daily Mix）、多架构 Docker 部署。
 
 ---
 
@@ -15,13 +15,13 @@ server/                 # Python 服务端
       v1/               # 版本化路由
       deps.py           # 依赖注入装配点
     core/               # 横切关注点：配置 / 日志 / 异常
-    database/           # 持久化：Phase 1 是 JSON 配置存储，Phase 2 换 SQLModel
+    database/           # 持久化：SQLModel + SQLite
     models/             # 领域模型（值对象）
     schemas/            # API 传输结构（DTO）
     services/           # 用例层：业务编排
     subsonic/           # 防腐层：唯一允许发 Subsonic HTTP 请求的地方
-    ai/                 # Phase 3
-    scheduler/          # Phase 4
+    ai/                 # LLM Provider 抽象与提示词
+    scheduler/          # APScheduler 定时任务（每日推荐）
     utils/              # 纯函数工具
 web/                    # React 前端
   src/
@@ -106,7 +106,7 @@ docker run -d --name ai-playlist \
 docker pull ghcr.io/<owner>/<repo>:latest   # 自动匹配本机架构
 ```
 
-## 登录与启动引导（Phase 7）
+## 登录与启动引导
 
 系统默认开启登录校验。鉴权使用 **HttpOnly Cookie 会话**（非 Bearer Header），
 原因是浏览器对 `<audio src>` 串流和封面 `<img>` 发起的请求无法附加 `Authorization` 头，
@@ -164,7 +164,7 @@ rm -f server/data/app.db
 > | GET | `/api/v1/setup/status` | 引导各步进度聚合 |
 > | POST | `/api/v1/setup/complete` | 落盘 onboarding 完成标记 |
 
-### Phase 1 基础接口
+### 服务器配置接口
 
 
 
@@ -179,7 +179,7 @@ rm -f server/data/app.db
 
 ## 路线图
 
-已完成：**Phase 1** 基础框架 · **Phase 2** 音乐库同步（SQLModel + SQLite）· **Phase 3** 统一 LLM Provider 与 AI 建歌单 · **Phase 4** APScheduler 每日推荐 · **Phase 5** UI 打磨 · **Phase 6** 多架构 Docker + CI · **Phase 7** 登录校验 + 容器启动引导。
+已完成：基础框架 · 音乐库同步（SQLModel + SQLite）· 统一 LLM Provider 与 AI 建歌单 · APScheduler 每日推荐 · UI 打磨 · 多架构 Docker + CI · 登录校验 + 容器启动引导（Phase 1–7 全部完结）。
 
 后续可考虑：
 

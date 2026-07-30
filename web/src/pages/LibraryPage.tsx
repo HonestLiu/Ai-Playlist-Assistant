@@ -119,7 +119,7 @@ export function LibraryPage() {
       <div>
         <h1 className="text-xl font-medium">音乐库</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-           Phase 5 · 把 Subsonic 服务器上的音乐库异步同步到本地，并支持浏览。
+          把 Subsonic 服务器上的音乐库同步到本地，供 AI 选歌与浏览。
         </p>
       </div>
 

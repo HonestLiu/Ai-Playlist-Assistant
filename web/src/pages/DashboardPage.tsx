@@ -50,7 +50,7 @@ export function DashboardPage() {
       <div>
         <h1 className="text-xl font-medium">总览</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Phase 1 已打通「前端 → FastAPI → Subsonic」链路，先确认连接正常。
+          确认本地服务端与 Subsonic 服务器的连接状态。
         </p>
       </div>
 
@@ -114,16 +114,36 @@ export function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>接下来</CardTitle>
-          <CardDescription>后续 Phase 会在这里逐步填充能力</CardDescription>
+          <CardTitle>功能导航</CardTitle>
+          <CardDescription>核心能力均已就绪，点选即可进入</CardDescription>
         </CardHeader>
         <CardContent>
-          <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
-            <li>Phase 2 · 音乐库同步与浏览（歌曲 / 专辑 / 艺术家）</li>
-            <li>Phase 3 · LLM Provider 抽象、自然语言生成歌单</li>
-            <li>Phase 4 · APScheduler 定时生成 Daily Mix</li>
-            <li>Phase 5 · UI 打磨、缓存与性能优化</li>
-          </ul>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link
+              to="/assistant"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              💬 AI 助手 · 自然语言生成歌单
+            </Link>
+            <Link
+              to="/playlists"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              🎵 歌单 · 历史歌单与每日推荐
+            </Link>
+            <Link
+              to="/library"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              📚 音乐库 · 同步与浏览艺术家 / 专辑 / 歌曲
+            </Link>
+            <Link
+              to="/settings"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              ⚙️ 设置 · 服务器 / AI / 账号
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

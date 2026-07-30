@@ -113,7 +113,7 @@ export function AppLayout() {
           ))}
         </nav>
 
-        <div className="px-5 py-4 text-xs text-muted-foreground">Phase 7 · 登录与引导</div>
+        <div className="px-5 py-4 text-xs text-muted-foreground">AI 音乐歌单助手</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
