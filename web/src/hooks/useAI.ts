@@ -44,6 +44,14 @@ export function usePlaylist(id: number) {
   });
 }
 
+export function useSyncPlaylists() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => aiApi.syncPlaylists(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: aiKeys.playlists }),
+  });
+}
+
 export function useDeletePlaylist() {
   const qc = useQueryClient();
   return useMutation({

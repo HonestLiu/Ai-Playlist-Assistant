@@ -69,6 +69,13 @@ export interface SchedulerTriggerResult {
   triggered: boolean;
 }
 
+export interface PlaylistSyncResult {
+  imported: number;
+  updated: number;
+  removed: number;
+  total: number;
+}
+
 export interface RecommendationResult {
   query: string;
   intent: PlaylistIntent;

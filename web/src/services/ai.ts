@@ -9,6 +9,7 @@ import type {
   Playlist,
   PlaylistDetail,
   PlaylistRenameIn,
+  PlaylistSyncResult,
   RecommendationResult,
   SchedulerStatus,
   SchedulerTriggerResult,
@@ -27,6 +28,8 @@ export const aiApi = {
   dailyMix: (body: DailyMixRequest = {}) =>
     request<DailyMixResult>("/ai/daily-mix", { method: "POST", body }),
   listPlaylists: () => request<Playlist[]>("/playlists"),
+  syncPlaylists: () =>
+    request<PlaylistSyncResult>("/playlists/sync", { method: "POST" }),
   getPlaylist: (id: number) => request<PlaylistDetail>(`/playlists/${id}`),
   deletePlaylist: (id: number) =>
     request<void>(`/playlists/${id}`, { method: "DELETE" }),

@@ -1,5 +1,5 @@
-import { Clock, ListMusic, Pencil, Sparkles, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Clock, ListMusic, Pencil, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -8,6 +8,7 @@ import {
   usePlaylists,
   useRenamePlaylist,
   useSchedulerStatus,
+  useSyncPlaylists,
   useTriggerDailyMix,
 } from "@/hooks/useAI";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { formatDuration } from "@/lib/utils";
 const SOURCE_LABEL: Record<string, string> = {
   daily_mix: "每日推荐",
   ai: "AI",
+  server: "服务器",
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -43,9 +45,20 @@ export function PlaylistsPage() {
   const dailyMix = useDailyMix();
   const scheduler = useSchedulerStatus();
   const trigger = useTriggerDailyMix();
+  const sync = useSyncPlaylists();
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+
+  // 进入页面时自动从服务器同步一次（拉取服务器自带/他处创建的歌单）
+  const syncedOnce = useRef(false);
+  useEffect(() => {
+    if (!syncedOnce.current) {
+      syncedOnce.current = true;
+      sync.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">加载中…</p>;
@@ -78,15 +91,35 @@ export function PlaylistsPage() {
             AI 与每日推荐生成的歌单会同步到你的 Subsonic 服务器。
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => dailyMix.mutate({})}
-          disabled={dailyMix.isPending}
-        >
-          <Sparkles className="mr-1.5 h-4 w-4" />
-          {dailyMix.isPending ? "生成中…" : "生成今日推荐"}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+            title="从 Subsonic 服务器拉取已有歌单"
+          >
+            <RefreshCw
+              className={`mr-1.5 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`}
+            />
+            {sync.isPending ? "同步中…" : "从服务器同步"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => dailyMix.mutate({})}
+            disabled={dailyMix.isPending}
+          >
+            <Sparkles className="mr-1.5 h-4 w-4" />
+            {dailyMix.isPending ? "生成中…" : "生成今日推荐"}
+          </Button>
+        </div>
       </div>
+
+      {sync.data && (sync.data.imported > 0 || sync.data.removed > 0 || sync.data.updated > 0) ? (
+        <p className="mb-3 text-xs text-muted-foreground">
+          已从服务器同步：新增 {sync.data.imported}、更新 {sync.data.updated}、移除{" "}
+          {sync.data.removed}
+        </p>
+      ) : null}
 
       {/* 自动调度状态卡片 */}
       <Card className="mb-4 bg-accent/40">
