@@ -100,6 +100,35 @@ class PlayHistory(SQLModel, table=True):
     played_at: datetime = Field(default_factory=_now, index=True)
 
 
+class AppUser(SQLModel, table=True):
+    """本应用自身的登录账号（与 Subsonic 服务器账号无关）。
+
+    自托管单机场景，通常只有一个管理员；表结构预留多用户能力。
+    """
+
+    __tablename__ = "app_users"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    password_hash: str
+    is_admin: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=_now)
+    last_login_at: Optional[datetime] = None
+
+
+class AuthSession(SQLModel, table=True):
+    """登录会话。cookie 里存明文 token，库里只存其 SHA-256，便于随时吊销。"""
+
+    __tablename__ = "auth_sessions"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token_hash: str = Field(index=True, unique=True)
+    user_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=_now)
+    expires_at: datetime = Field(index=True)
+    user_agent: Optional[str] = None
+
+
 class Playlist(SQLModel, table=True):
     """本地记录的 AI 创建的歌单（Subsonic 侧另存一份，二者通过 subsonic_id 关联）。"""
 
