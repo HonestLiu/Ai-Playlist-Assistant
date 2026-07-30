@@ -76,7 +76,7 @@ export function AppLayout() {
           ))}
         </nav>
 
-        <div className="px-5 py-4 text-xs text-muted-foreground">Phase 4 · 每日推荐</div>
+        <div className="px-5 py-4 text-xs text-muted-foreground">Phase 5 · 异步同步</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

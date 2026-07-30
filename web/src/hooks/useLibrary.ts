@@ -9,7 +9,7 @@ export function useSyncStatus() {
     queryKey: libraryKeys.syncStatus,
     queryFn: libraryApi.syncStatus,
     retry: false,
-    refetchInterval: 5_000,
+    refetchInterval: 2_000,
   });
 }
 

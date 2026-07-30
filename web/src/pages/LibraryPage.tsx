@@ -44,7 +44,7 @@ function StatLink({
 function statusTone(status: string): "success" | "danger" | "muted" | "warning" {
   if (status === "success") return "success";
   if (status === "failed") return "danger";
-  if (status === "running") return "warning";
+  if (status === "running" || status === "queued") return "warning";
   return "muted";
 }
 
@@ -68,17 +68,20 @@ function SyncBody({ data }: { data: SyncState | { status: "never" } | undefined 
   }
 
   const state = data as SyncState;
+  const syncing = state.status === "running" || state.status === "queued";
   return (
     <CardContent className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge tone={statusTone(state.status)}>
           {state.status === "running"
             ? "同步中"
-            : state.status === "success"
-              ? "完成"
-              : state.status === "failed"
-                ? "失败"
-                : state.status}
+            : state.status === "queued"
+              ? "排队中"
+              : state.status === "success"
+                ? "完成"
+                : state.status === "failed"
+                  ? "失败"
+                  : state.status}
         </StatusBadge>
         <span className="text-sm text-muted-foreground">
           {state.artists_synced} 艺术家 · {state.albums_synced} 专辑 · {state.songs_synced} 歌曲
@@ -98,9 +101,9 @@ function SyncBody({ data }: { data: SyncState | { status: "never" } | undefined 
       ) : null}
 
       <div>
-        <Button onClick={() => trigger.mutate()} disabled={trigger.isPending}>
-          <RefreshCw className={trigger.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-          {trigger.isPending ? "同步中…" : "重新同步"}
+        <Button onClick={() => trigger.mutate()} disabled={trigger.isPending || syncing}>
+          <RefreshCw className={(trigger.isPending || syncing) ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          {syncing ? "同步进行中…" : trigger.isPending ? "提交中…" : "重新同步"}
         </Button>
       </div>
     </CardContent>
@@ -116,7 +119,7 @@ export function LibraryPage() {
       <div>
         <h1 className="text-xl font-medium">音乐库</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Phase 2 · 把 Subsonic 服务器上的音乐库同步到本地，并支持浏览。
+           Phase 5 · 把 Subsonic 服务器上的音乐库异步同步到本地，并支持浏览。
         </p>
       </div>
 
