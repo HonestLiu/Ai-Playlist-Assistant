@@ -23,6 +23,9 @@ class ServerSettings(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8000
     log_level: str = "INFO"
+    # 前端构建产物目录（web/dist）。非空且存在时由后端直接托管，容器部署用。
+    # 环境变量：SERVER__WEB_DIST
+    web_dist: str = ""
     # NoDecode：环境变量里写逗号分隔字符串，不要求写成 JSON 数组
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
