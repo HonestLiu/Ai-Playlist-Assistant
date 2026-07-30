@@ -1,13 +1,11 @@
 # AI 音乐歌单助手 — Docker 部署
 #
-# 两种用法任选其一：
+# 推荐做法：把容器 /app/data 绑定挂载到主机目录，数据持久化、重建容器/更新镜像都不丢。
+# 先在主机建目录并放行权限（容器以非 root 的 appuser 运行，否则写不了 SQLite）：
+#   mkdir -p ./data && chmod 777 ./data
+# 然后：docker compose up -d
 #
-# ① 免卷模式（默认，适合「NAS Docker 不支持卷配置」）
-#   直接 `docker compose up -d` 即可，数据存于容器内部 /app/data，随容器保留，
-#   容器 stop/start、重启都不丢；只有 docker rm 重建容器才会清空。
-#
-# ② 持久化模式（适合支持卷挂载的环境）
-#   去掉下面 volumes 段的注释，数据落到宿主 ./data 目录，容器重建也不丢。
+# 不想挂载、临时体验：把下面 volumes 段整段注释掉即可（数据存于容器内部，docker rm 会清空）。
 
 services:
   ai-playlist:
@@ -18,6 +16,5 @@ services:
       - "8000:8000"
     environment:
       - TZ=Asia/Shanghai
-    # ② 持久化：取消下一行注释（需先 `mkdir data`）
-    # volumes:
-    #   - ./data:/app/data
+    volumes:
+      - ./data:/app/data

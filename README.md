@@ -81,31 +81,28 @@ make web      # http://localhost:5173
 # 本地构建（宿主架构）
 docker build -t ai-playlist .
 
-# —— 免卷模式（推荐 NAS：很多 NAS 的 Docker 不支持卷配置）——
-# 镜像本身不声明 VOLUME，数据存于容器内部 /app/data，随容器保留，
-# 容器 stop/start、重启都不丢；只有 docker rm 重建容器才会清空。
+# —— 持久化（推荐）：把容器 /app/data 映射到主机目录 ——
+# 先在主机建好目录（路径按你的 NAS 改，例如群晖 /volume1/docker/ai-playlist/data）
+mkdir -p /path/on/nas/ai-playlist/data
+# 关键：容器以非 root 的 appuser 运行，需保证该目录可被容器写入，否则起不来
+chmod 777 /path/on/nas/ai-playlist/data
 docker run -d --name ai-playlist \
   -p 8000:8000 \
+  -v /path/on/nas/ai-playlist/data:/app/data \
   -e TZ=Asia/Shanghai \
   ai-playlist
 
-# —— 持久化模式（支持卷挂载的环境）——
-# 用 -v 把宿主机目录挂到 /app/data，容器重建也不丢数据：
-# docker run -d --name ai-playlist \
-#   -p 8000:8000 \
-#   -v /path/on/nas/ai-playlist:/app/data \
-#   -e TZ=Asia/Shanghai \
-#   ai-playlist
-#
 # 也可用 -e APP_DATA_DIR=/your/mounted/path 把数据指向已挂载的任意目录（无需改镜像）。
 # 打开 http://localhost:8000 即可使用（含 Web 界面）
 ```
 
-> **关于卷**：镜像不再强制匿名卷（`VOLUME`），因此「NAS Docker 不支持卷配置」时也能直接运行。
-> 数据默认留在容器内部 `/app/data`；需要持久化时，用上面的 `-v` 挂载，或通过 `APP_DATA_DIR`
-> 指向一个你已挂载的目录即可，无需改动镜像本身。
+> **关于卷 / 持久化**：镜像**不再强制匿名卷**（`VOLUME`），因此「NAS Docker 不支持卷配置」也能直接运行；
+> 但**数据持久化最稳的做法就是把 `/app/data` 绑定挂载到主机目录**（上面 `-v` 一行），容器重建、更新镜像都不丢。
+> **权限坑**：镜像以非 root 用户 `appuser` 启动，若主机目录权限不足（如属主为 root 且 755），应用会因写不了
+> SQLite 而启动失败。最简解决：`chmod 777 <主机目录>`（个人 NAS 可接受），或 `docker run --user $(id -u):$(id -g)`
+> 让容器以主机当前用户身份运行（此时目录属主需与该 uid 一致）。
 
-也可使用仓库根目录的 `docker-compose.yml`（默认免卷，取消注释即可开启持久化）。
+也可使用仓库根目录的 `docker-compose.yml`（默认免卷，取消注释 `volumes` 段即开启 `- ./data:/app/data` 绑定）。
 
 ### GitHub Actions 自动构建
 
