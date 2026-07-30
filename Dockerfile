@@ -52,9 +52,12 @@ COPY --from=py-deps /install /usr/local
 COPY server/app ./app
 COPY --from=web-builder /build/web/dist ./web-dist
 
-# data 目录存 SQLite 与运行时配置，建议挂卷持久化
+# 数据目录（SQLite / 运行时配置）默认位于容器内部 /app/data。
+# 镜像【不声明 VOLUME】，便于「NAS Docker 不支持卷配置」的场景直接运行：
+# 数据随容器保留（stop/start、重启都不丢，仅 docker rm 重建容器时清空）。
+# 需要持久化到宿主机时，可在运行期用 -e APP_DATA_DIR=/your/path 指向已挂载目录，
+# 或直接 -v /host/path:/app/data 挂载（支持卷的环境）。
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
-VOLUME ["/app/data"]
 
 USER appuser
 EXPOSE 8000

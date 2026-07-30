@@ -115,6 +115,13 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     debug: bool = False
 
+    # 数据目录绝对路径覆盖：部署到外部存储 / NAS 持久化时使用。
+    # 不设置时默认 <BASE_DIR>/data（容器内为 /app/data）。
+    # 环境变量：APP_DATA_DIR
+    app_data_dir: str = Field(
+        default="", description="数据目录绝对路径覆盖（环境变量 APP_DATA_DIR）"
+    )
+
     server: ServerSettings = Field(default_factory=ServerSettings)
     subsonic: SubsonicSettings = Field(default_factory=SubsonicSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
@@ -127,7 +134,7 @@ class Settings(BaseSettings):
 
     @property
     def data_dir(self) -> Path:
-        path = BASE_DIR / "data"
+        path = Path(self.app_data_dir) if self.app_data_dir else (BASE_DIR / "data")
         path.mkdir(parents=True, exist_ok=True)
         return path
 

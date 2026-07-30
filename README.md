@@ -81,14 +81,31 @@ make web      # http://localhost:5173
 # 本地构建（宿主架构）
 docker build -t ai-playlist .
 
-# 运行：数据（SQLite / 运行时配置）挂卷持久化
+# —— 免卷模式（推荐 NAS：很多 NAS 的 Docker 不支持卷配置）——
+# 镜像本身不声明 VOLUME，数据存于容器内部 /app/data，随容器保留，
+# 容器 stop/start、重启都不丢；只有 docker rm 重建容器才会清空。
 docker run -d --name ai-playlist \
   -p 8000:8000 \
-  -v ai-playlist-data:/app/data \
   -e TZ=Asia/Shanghai \
   ai-playlist
+
+# —— 持久化模式（支持卷挂载的环境）——
+# 用 -v 把宿主机目录挂到 /app/data，容器重建也不丢数据：
+# docker run -d --name ai-playlist \
+#   -p 8000:8000 \
+#   -v /path/on/nas/ai-playlist:/app/data \
+#   -e TZ=Asia/Shanghai \
+#   ai-playlist
+#
+# 也可用 -e APP_DATA_DIR=/your/mounted/path 把数据指向已挂载的任意目录（无需改镜像）。
 # 打开 http://localhost:8000 即可使用（含 Web 界面）
 ```
+
+> **关于卷**：镜像不再强制匿名卷（`VOLUME`），因此「NAS Docker 不支持卷配置」时也能直接运行。
+> 数据默认留在容器内部 `/app/data`；需要持久化时，用上面的 `-v` 挂载，或通过 `APP_DATA_DIR`
+> 指向一个你已挂载的目录即可，无需改动镜像本身。
+
+也可使用仓库根目录的 `docker-compose.yml`（默认免卷，取消注释即可开启持久化）。
 
 ### GitHub Actions 自动构建
 
@@ -125,6 +142,7 @@ Cookie 才能让播放器 / 封面在已登录状态下正常放行、未登录�
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
+| `APP_DATA_DIR` | 空（默认 `<BASE_DIR>/data`，容器内 `/app/data`） | 数据目录绝对路径覆盖；挂卷的 NAS 可用它指向已挂载目录，免去改镜像 |
 | `AUTH__ENABLED` | `true` | 是否开启登录校验；设 `false` 则所有人免登录（开发 / 内网可信环境） |
 | `AUTH__SESSION_TTL_HOURS` | `720` | 会话有效期（小时），即 30 天 |
 | `AUTH__COOKIE_NAME` | `apa_session` | Cookie 名称 |
@@ -136,7 +154,7 @@ Cookie 才能让播放器 / 封面在已登录状态下正常放行、未登录�
 
 ### Docker 部署时初始化
 
-容器首次启动（数据卷为空）即进入引导流程。用浏览器打开 `http://localhost:8000`
+容器首次启动（数据目录为空）即进入引导流程。用浏览器打开 `http://localhost:8000`
 走完四步即可。若通过 Docker 运行且不想用网页引导，也可在 `docker run -e` 里预填
 `SUBSONIC__*` / `LLM__*` 与 `AUTH__*`，但仍需在网页完成一次管理员账号创建。
 

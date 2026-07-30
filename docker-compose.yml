@@ -1,0 +1,23 @@
+# AI 音乐歌单助手 — Docker 部署
+#
+# 两种用法任选其一：
+#
+# ① 免卷模式（默认，适合「NAS Docker 不支持卷配置」）
+#   直接 `docker compose up -d` 即可，数据存于容器内部 /app/data，随容器保留，
+#   容器 stop/start、重启都不丢；只有 docker rm 重建容器才会清空。
+#
+# ② 持久化模式（适合支持卷挂载的环境）
+#   去掉下面 volumes 段的注释，数据落到宿主 ./data 目录，容器重建也不丢。
+
+services:
+  ai-playlist:
+    image: ghcr.io/<owner>/<repo>:latest
+    container_name: ai-playlist
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Shanghai
+    # ② 持久化：取消下一行注释（需先 `mkdir data`）
+    # volumes:
+    #   - ./data:/app/data
