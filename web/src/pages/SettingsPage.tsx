@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   useTestConnection,
 } from "@/hooks/useSubsonic";
 import { useLLMConfig, useSaveLLMConfig, useTestLLMConfig } from "@/hooks/useAI";
+import { useChangePassword, useSession } from "@/hooks/useAuth";
+import { HttpError } from "@/services/http";
 import type { ConnectionStatus, SubsonicConfigIn } from "@/types/api";
 import type { LLMConfigIn, LLMTestResult } from "@/types/ai";
 
@@ -203,7 +205,110 @@ export function SettingsPage() {
       </Card>
 
       <LLMSettingsCard />
+      <AccountCard />
     </div>
+  );
+}
+
+function AccountCard() {
+  const session = useSession();
+  const changePassword = useChangePassword();
+
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  if (!session.data?.auth_enabled) return null;
+
+  const mismatch = confirm.length > 0 && next !== confirm;
+  const valid = current.length > 0 && next.length >= 6 && !mismatch;
+
+  const submit = async () => {
+    setError(null);
+    setDone(false);
+    try {
+      await changePassword.mutateAsync({ current_password: current, new_password: next });
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof HttpError ? err.message : "修改失败");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardTitle>账号</CardTitle>
+            <CardDescription>
+              当前登录：{session.data.user?.username ?? "-"}。修改密码后其它设备会被强制登出。
+            </CardDescription>
+          </div>
+          <StatusBadge tone="success">已登录</StatusBadge>
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="pwd-current">当前密码</Label>
+          <Input
+            id="pwd-current"
+            type="password"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => {
+              setCurrent(e.target.value);
+              setDone(false);
+            }}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="pwd-new">新密码</Label>
+            <Input
+              id="pwd-new"
+              type="password"
+              autoComplete="new-password"
+              placeholder="至少 6 位"
+              value={next}
+              onChange={(e) => {
+                setNext(e.target.value);
+                setDone(false);
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="pwd-confirm">确认新密码</Label>
+            <Input
+              id="pwd-confirm"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </div>
+        </div>
+        {mismatch ? <p className="text-sm text-destructive">两次输入的新密码不一致</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {done ? <p className="text-sm text-[var(--success)]">密码已更新</p> : null}
+      </CardContent>
+
+      <CardFooter className="justify-end">
+        <Button disabled={!valid || changePassword.isPending} onClick={() => void submit()}>
+          {changePassword.isPending ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          ) : (
+            <KeyRound className="mr-1.5 h-4 w-4" />
+          )}
+          修改密码
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
 
