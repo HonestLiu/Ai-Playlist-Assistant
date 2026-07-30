@@ -14,6 +14,7 @@ import { NavLink, Outlet } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PlayerBar } from "@/components/player/PlayerBar";
 import { useSubsonicStatus } from "@/hooks/useSubsonic";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme";
@@ -76,7 +77,7 @@ export function AppLayout() {
           ))}
         </nav>
 
-        <div className="px-5 py-4 text-xs text-muted-foreground">Phase 5 · 异步同步</div>
+        <div className="px-5 py-4 text-xs text-muted-foreground">Phase 6 · 播放与个性化</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -90,6 +91,7 @@ export function AppLayout() {
         <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
           <Outlet />
         </main>
+        <PlayerBar />
       </div>
     </div>
   );

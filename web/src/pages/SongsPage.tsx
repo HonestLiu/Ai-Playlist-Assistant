@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
 
+import { PlayButton } from "@/components/player/PlayButton";
 import { CoverArt } from "@/components/library/CoverArt";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useBrowse } from "@/hooks/useBrowse";
+import { toTrack } from "@/lib/player";
 import { formatDuration } from "@/lib/utils";
 import { libraryApi } from "@/services/library";
 
@@ -13,6 +15,7 @@ export function SongsPage() {
     "songs",
     libraryApi.listSongs,
   );
+  const tracks = items.map(toTrack);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -50,9 +53,11 @@ export function SongsPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((s) => (
+                {items.map((s, i) => (
                   <tr key={s.id} className="border-b border-border last:border-0 hover:bg-accent">
-                    <td className="px-3 py-2 text-center text-muted-foreground">{s.track ?? "—"}</td>
+                    <td className="px-3 py-2 text-center text-muted-foreground">
+                      <PlayButton track={toTrack(s)} queue={tracks} index={i} size="icon" className="mx-auto" />
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <CoverArt

@@ -1,10 +1,13 @@
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Play, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { PlayButton } from "@/components/player/PlayButton";
 import { useDeletePlaylist, usePlaylist } from "@/hooks/useAI";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { toTrack } from "@/lib/player";
 import { formatDuration } from "@/lib/utils";
+import { usePlayerStore } from "@/stores/player";
 
 export function PlaylistDetailPage() {
   const { id } = useParams();
@@ -16,6 +19,8 @@ export function PlaylistDetailPage() {
   if (isLoading) return <p className="text-sm text-muted-foreground">加载中…</p>;
   if (isError || !data)
     return <p className="text-sm text-destructive">歌单不存在或加载失败。</p>;
+
+  const tracks = data.songs.map(toTrack);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -36,6 +41,14 @@ export function PlaylistDetailPage() {
             <p className="mt-1 text-xs text-muted-foreground">需求：{data.query}</p>
           )}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => usePlayerStore.getState().setQueue(tracks, 0)}
+        >
+          <Play className="mr-1.5 h-4 w-4" /> 播放全部
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -60,8 +73,9 @@ export function PlaylistDetailPage() {
         <ol className="divide-y divide-border rounded-xl border border-border bg-card">
           {data.songs.map((song, i) => (
             <li key={song.id} className="flex items-start gap-3 px-4 py-2.5">
-              <span className="mt-0.5 w-5 shrink-0 text-right text-xs text-muted-foreground">
-                {i + 1}
+              <span className="mt-0.5 flex w-8 shrink-0 items-center justify-end gap-1 text-xs text-muted-foreground">
+                <PlayButton track={tracks[i]} queue={tracks} index={i} size="icon" className="-mr-1" />
+                <span>{i + 1}</span>
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">{song.title}</div>

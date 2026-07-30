@@ -1,9 +1,13 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Play } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { PlayButton } from "@/components/player/PlayButton";
 import { CoverArt } from "@/components/library/CoverArt";
+import { Button } from "@/components/ui/button";
 import { useAlbum } from "@/hooks/useLibrary";
+import { toTrack } from "@/lib/player";
 import { formatDuration } from "@/lib/utils";
+import { usePlayerStore } from "@/stores/player";
 
 export function AlbumDetailPage() {
   const { id = "" } = useParams();
@@ -13,6 +17,7 @@ export function AlbumDetailPage() {
   if (!data) return <p className="text-sm text-muted-foreground">未找到该专辑</p>;
 
   const name = data.name || "未知专辑";
+  const tracks = data.songs.map(toTrack);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -26,7 +31,7 @@ export function AlbumDetailPage() {
 
       <div className="flex items-center gap-4">
         <CoverArt coverArt={data.cover_art} alt={name} className="h-28 w-28 rounded-md" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-medium">{name}</h1>
           {data.artist_id ? (
             <Link
@@ -44,6 +49,14 @@ export function AlbumDetailPage() {
             {data.song_count ?? 0} 首 · {formatDuration(data.duration)}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => usePlayerStore.getState().setQueue(tracks, 0)}
+        >
+          <Play className="mr-1.5 h-4 w-4" /> 播放全部
+        </Button>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border">
@@ -56,9 +69,11 @@ export function AlbumDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {data.songs.map((s) => (
+            {data.songs.map((s, i) => (
               <tr key={s.id} className="border-b border-border last:border-0 hover:bg-accent">
-                <td className="px-3 py-2 text-center text-muted-foreground">{s.track ?? "—"}</td>
+                <td className="px-3 py-2 text-center text-muted-foreground">
+                  <PlayButton track={toTrack(s)} queue={tracks} index={i} size="icon" className="mx-auto" />
+                </td>
                 <td className="px-3 py-2 font-medium">{s.title}</td>
                 <td className="px-3 py-2 text-right text-muted-foreground">
                   {formatDuration(s.duration)}
