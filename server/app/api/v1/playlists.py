@@ -73,6 +73,23 @@ async def delete_playlist(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+class PlaylistRenameIn(BaseModel):
+    name: str
+
+
+@router.patch("/{playlist_id}", response_model=PlaylistOut, summary="重命名歌单（本地 + Subsonic）")
+async def rename_playlist(
+    playlist_id: int,
+    body: PlaylistRenameIn,
+    playlist_service: PlaylistServiceDep,
+    session: SessionDep,
+) -> PlaylistOut:
+    record = await playlist_service.update(session, playlist_id, name=body.name)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="歌单不存在")
+    return _to_out(record)
+
+
 def _to_out(record) -> PlaylistOut:
     return PlaylistOut(
         id=record.id,

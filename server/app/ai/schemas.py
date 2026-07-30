@@ -57,3 +57,20 @@ class RecommendationResult(BaseModel):
     songs: list[RecommendedSong]
     total_duration: int = 0
     playlist: PlaylistRef | None = None
+
+
+class DailyMixRequest(BaseModel):
+    """每日推荐请求；target_size 不传则默认 20。"""
+
+    target_size: int | None = None
+
+
+class DailyMixResult(BaseModel):
+    """每日推荐结果：含本次主题、推荐明细与（新建/刷新后的）歌单引用。"""
+
+    query: str
+    theme: str
+    recommendation: RecommendationResult
+    playlist: PlaylistRef | None = None
+    refreshed: bool = False
+    created: bool = False

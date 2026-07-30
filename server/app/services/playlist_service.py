@@ -66,6 +66,65 @@ class PlaylistService:
     def get(self, session: Session, playlist_id: int) -> Playlist | None:
         return session.get(Playlist, playlist_id)
 
+    def get_by_name(self, session: Session, name: str) -> Playlist | None:
+        return session.exec(
+            select(Playlist).where(Playlist.name == name)
+        ).first()
+
+    # ------------------------------------------------------------------ 更新
+    async def update(
+        self,
+        session: Session,
+        playlist_id: int,
+        *,
+        name: str | None = None,
+        song_ids: list[str] | None = None,
+        description: str | None = None,
+        query: str | None = None,
+    ) -> Playlist | None:
+        record = session.get(Playlist, playlist_id)
+        if record is None:
+            return None
+
+        new_name = name if name is not None else record.name
+        new_song_ids = list(song_ids) if song_ids is not None else record.song_ids
+
+        duration = record.duration
+        if song_ids is not None:
+            duration = (
+                session.exec(
+                    select(func.coalesce(func.sum(Song.duration), 0)).where(
+                        Song.id.in_(new_song_ids)
+                    )
+                ).first()
+                or 0
+            )
+
+        config = self._sub.resolve()
+        async with SubsonicClient(config) as client:
+            await client.update_playlist(
+                record.subsonic_id, name=new_name, song_ids=list(new_song_ids)
+            )
+
+        record.name = new_name
+        record.song_ids = list(new_song_ids)
+        record.song_count = len(new_song_ids)
+        record.duration = int(duration or 0)
+        if description is not None:
+            record.description = description
+        if query is not None:
+            record.query = query
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+        logger.info(
+            "已更新歌单 %s（subsonic_id=%s, %d 首）",
+            new_name,
+            record.subsonic_id,
+            len(new_song_ids),
+        )
+        return record
+
     # ------------------------------------------------------------------ 删除
     async def delete(self, session: Session, playlist_id: int) -> bool:
         record = session.get(Playlist, playlist_id)

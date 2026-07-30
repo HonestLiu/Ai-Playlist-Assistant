@@ -127,16 +127,27 @@ class RecommendationService:
         stmt = select(Song)
         if conditions:
             stmt = stmt.where(or_(*conditions))
-        stmt = stmt.limit(_CANDIDATE_CAP)
-        rows = list(session.exec(stmt).all())
+        rows = list(session.exec(stmt.limit(_CANDIDATE_CAP)).all())
 
-        # 召回太少时，去掉 genre 条件再宽一次（保底）
+        # 召回太少：先去掉流派条件，用年代/关键词等其它条件再宽一次
         if len(rows) < _MIN_RECALL and conditions:
-            genre_conditions = self._build_conditions(intent, genre_only=True)
+            genre_conditions = set(self._build_conditions(intent, genre_only=True))
             others = [c for c in conditions if c not in genre_conditions]
             if others:
-                stmt2 = select(Song).where(or_(*others)).limit(_CANDIDATE_CAP)
-                rows = list(session.exec(stmt2).all())
+                rows = list(
+                    session.exec(
+                        select(Song).where(or_(*others)).limit(_CANDIDATE_CAP)
+                    ).all()
+                )
+
+        # 仍太少（典型：LLM 选了曲库里不存在的流派/关键词）→ 回退到全库随机抽样，
+        # 保证总能选出歌，避免「每日推荐」空转。随机抽样也带来每日新鲜感。
+        if len(rows) < _MIN_RECALL:
+            rows = list(
+                session.exec(
+                    select(Song).order_by(func.random()).limit(_CANDIDATE_CAP)
+                ).all()
+            )
         return rows
 
     def _build_conditions(self, intent: PlaylistIntent, *, genre_only: bool = False):
