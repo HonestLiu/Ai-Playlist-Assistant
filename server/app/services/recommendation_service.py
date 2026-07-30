@@ -50,6 +50,9 @@ class RecommendationService:
         *,
         target_size: int | None = None,
         provider: LLMProvider | None = None,
+        preferred_artists: list[str] | None = None,
+        preferred_genres: list[str] | None = None,
+        exclude_song_ids: list[str] | None = None,
     ) -> RecommendationResult:
         settings = self._llm.resolve()
         provider = provider or get_provider(settings)
@@ -59,8 +62,14 @@ class RecommendationService:
         if target_size:
             intent.target_size = target_size
 
-        # ② 候选召回
-        candidates = self._retrieve_candidates(session, intent)
+        # ② 候选召回（可注入偏好，提升 Daily Mix 个性化）
+        candidates = self._retrieve_candidates(
+            session,
+            intent,
+            preferred_artists=preferred_artists,
+            preferred_genres=preferred_genres,
+            exclude_song_ids=exclude_song_ids,
+        )
         if not candidates:
             return RecommendationResult(
                 query=query,
@@ -70,8 +79,15 @@ class RecommendationService:
                 songs=[],
             )
 
-        # ③ 候选选择
-        chosen = await self._select(provider, settings, intent, candidates)
+        # ③ 候选选择（可注入偏好提示）
+        chosen = await self._select(
+            provider,
+            settings,
+            intent,
+            candidates,
+            preferred_artists=preferred_artists,
+            preferred_genres=preferred_genres,
+        )
 
         # ④ 组装
         by_id = {s.id: s for s in candidates}
@@ -122,33 +138,74 @@ class RecommendationService:
             return PlaylistIntent(summary=query, target_size=20)
 
     # ------------------------------------------------------------------ ② 候选召回
-    def _retrieve_candidates(self, session: Session, intent: PlaylistIntent) -> list[Song]:
+    def _retrieve_candidates(
+        self,
+        session: Session,
+        intent: PlaylistIntent,
+        *,
+        preferred_artists: list[str] | None = None,
+        preferred_genres: list[str] | None = None,
+        exclude_song_ids: list[str] | None = None,
+    ) -> list[Song]:
+        preferred_artists = preferred_artists or []
+        preferred_genres = preferred_genres or []
+        exclude = set(exclude_song_ids or [])
+
         conditions = self._build_conditions(intent)
-        stmt = select(Song)
+        pool: dict[str, Song] = {}
+
+        def _add(rows: list[Song]) -> None:
+            for r in rows:
+                if r.id not in exclude:
+                    pool.setdefault(r.id, r)
+
         if conditions:
-            stmt = stmt.where(or_(*conditions))
-        rows = list(session.exec(stmt.limit(_CANDIDATE_CAP)).all())
+            _add(
+                list(
+                    session.exec(select(Song).where(or_(*conditions)).limit(_CANDIDATE_CAP)).all()
+                )
+            )
+
+        # 偏好召回：把常听的艺术家/流派也纳入候选池，确保 Daily Mix 反映口味
+        pref_conditions = []
+        for a in preferred_artists:
+            pref_conditions.append(Song.artist_name.ilike(f"%{a}%"))
+        for g in preferred_genres:
+            pref_conditions.append(Song.genre.ilike(f"%{g}%"))
+        if pref_conditions:
+            _add(
+                list(
+                    session.exec(
+                        select(Song).where(or_(*pref_conditions)).limit(_CANDIDATE_CAP)
+                    ).all()
+                )
+            )
+
+        rows = list(pool.values())
 
         # 召回太少：先去掉流派条件，用年代/关键词等其它条件再宽一次
         if len(rows) < _MIN_RECALL and conditions:
             genre_conditions = set(self._build_conditions(intent, genre_only=True))
             others = [c for c in conditions if c not in genre_conditions]
             if others:
-                rows = list(
-                    session.exec(
-                        select(Song).where(or_(*others)).limit(_CANDIDATE_CAP)
-                    ).all()
+                _add(
+                    list(
+                        session.exec(
+                            select(Song).where(or_(*others)).limit(_CANDIDATE_CAP)
+                        ).all()
+                    )
                 )
+                rows = list(pool.values())
 
-        # 仍太少（典型：LLM 选了曲库里不存在的流派/关键词）→ 回退到全库随机抽样，
-        # 保证总能选出歌，避免「每日推荐」空转。随机抽样也带来每日新鲜感。
+        # 仍太少（典型：偏好里没有任何匹配）→ 回退到全库随机抽样（排除已播）
         if len(rows) < _MIN_RECALL:
-            rows = list(
-                session.exec(
-                    select(Song).order_by(func.random()).limit(_CANDIDATE_CAP)
-                ).all()
+            sample = list(
+                session.exec(select(Song).order_by(func.random()).limit(_CANDIDATE_CAP)).all()
             )
-        return rows
+            _add(sample)
+            rows = list(pool.values())
+
+        return rows[:_CANDIDATE_CAP]
 
     def _build_conditions(self, intent: PlaylistIntent, *, genre_only: bool = False):
         conds = []
@@ -179,6 +236,8 @@ class RecommendationService:
         settings: LLMSettings,
         intent: PlaylistIntent,
         candidates: list[Song],
+        preferred_artists: list[str] | None = None,
+        preferred_genres: list[str] | None = None,
     ) -> list:
         cand_dicts = [
             {
@@ -192,6 +251,15 @@ class RecommendationService:
             for s in candidates
         ]
         messages = build_selection_messages(intent.summary, cand_dicts, intent.target_size)
+        # 注入偏好提示：优先选常听艺术家/流派，但保留约 20% 探索新曲风
+        if preferred_artists or preferred_genres:
+            bits = []
+            if preferred_artists:
+                bits.append("用户偏好艺术家：" + "、".join(preferred_artists[:8]))
+            if preferred_genres:
+                bits.append("偏好流派：" + "、".join(preferred_genres[:6]))
+            bits.append("在候选中优先选择符合这些偏好的歌曲，但保留约 20% 探索新曲风以保持新鲜感。")
+            messages = messages + [{"role": "user", "content": "\n".join(bits)}]
         request = ChatRequest(
             messages=messages,
             temperature=settings.temperature,
