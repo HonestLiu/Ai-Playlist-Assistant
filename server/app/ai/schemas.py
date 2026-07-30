@@ -9,6 +9,10 @@ class PlaylistIntent(BaseModel):
     """LLM 从自然语言里解析出的结构化意图。"""
 
     summary: str = Field(description="对本次需求的简短概括")
+    title: str | None = Field(
+        default=None,
+        description="AI 生成的简短歌单标题（≤20 字，不含「AI」等前缀，不含日期）",
+    )
     mood: list[str] | None = Field(default=None, description="情绪标签")
     language: list[str] | None = Field(
         default=None, description="语言偏好，ISO 代码如 ja/en/zh/ko"
@@ -56,6 +60,7 @@ class RecommendationResult(BaseModel):
     total_candidates: int
     songs: list[RecommendedSong]
     total_duration: int = 0
+    title: str | None = None
     playlist: PlaylistRef | None = None
 
 

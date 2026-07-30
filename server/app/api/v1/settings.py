@@ -5,12 +5,19 @@ from __future__ import annotations
 from fastapi import APIRouter, Response, status
 
 from app.ai.providers import ChatRequest, Message, get_provider
-from app.api.deps import LLMSettingsServiceDep, SubsonicServiceDep, SubsonicSettingsServiceDep
+from app.api.deps import (
+    ConfigStoreDep,
+    LLMSettingsServiceDep,
+    SubsonicServiceDep,
+    SubsonicSettingsServiceDep,
+)
 from app.models.subsonic import ConnectionStatus
 from app.schemas.settings import (
     LLMConfigIn,
     LLMConfigOut,
     LLMTestResult,
+    PreferencesIn,
+    PreferencesOut,
     SubsonicConfigIn,
     SubsonicConfigOut,
 )
@@ -101,3 +108,27 @@ async def test_llm_config(
         )
     except Exception as exc:  # noqa: BLE001
         return LLMTestResult(provider=candidate.provider, ok=False, error=str(exc)[:300])
+
+
+# ------------------------------------------------------------------ 用户偏好
+@router.get(
+    "/preferences",
+    response_model=PreferencesOut,
+    summary="读取用户偏好（如歌单标题前缀开关）",
+)
+async def read_preferences(store: ConfigStoreDep) -> PreferencesOut:
+    prefs = store.get_preferences()
+    return PreferencesOut(playlist_title_prefix=bool(prefs.get("playlist_title_prefix", True)))
+
+
+@router.put(
+    "/preferences",
+    response_model=PreferencesOut,
+    summary="保存用户偏好",
+)
+async def update_preferences(
+    payload: PreferencesIn, store: ConfigStoreDep
+) -> PreferencesOut:
+    patch = {k: v for k, v in payload.model_dump().items() if v is not None}
+    data = store.update_preferences(patch)
+    return PreferencesOut(playlist_title_prefix=bool(data.get("playlist_title_prefix", True)))

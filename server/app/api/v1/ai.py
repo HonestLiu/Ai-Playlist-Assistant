@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from fastapi import APIRouter, Request
 
 from app.ai.schemas import (
@@ -13,6 +11,7 @@ from app.ai.schemas import (
     RecommendationResult,
 )
 from app.api.deps import (
+    ConfigStoreDep,
     DailyMixServiceDep,
     PlaylistServiceDep,
     RecommendationServiceDep,
@@ -20,11 +19,15 @@ from app.api.deps import (
 )
 from app.core.errors import AppError
 from app.core.logging import get_logger
+from app.database.config_store import ConfigStore
 from pydantic import BaseModel
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+_TITLE_PREFIX = "AI · "
+_DEFAULT_BASE_TITLE = "我的 AI 歌单"
 
 
 class RecommendRequest(BaseModel):
@@ -40,10 +43,16 @@ class CreatePlaylistRequest(BaseModel):
     name: str | None = None
 
 
-def _default_playlist_name(query: str) -> str:
-    head = query.strip().replace("\n", " ")[:20]
-    stamp = datetime.now().strftime("%m%d %H:%M")
-    return f"AI · {head} · {stamp}"
+def _apply_title_prefix(store: ConfigStore, base: str) -> str:
+    """按用户偏好给歌单「基础标题」加或不加「AI · 」前缀。
+
+    基础标题来自 AI 生成的 title（或用户改名），不含前缀；
+    是否加前缀完全由用户偏好 ``playlist_title_prefix`` 决定（默认加）。
+    """
+    prefs = store.get_preferences() or {}
+    use_prefix = prefs.get("playlist_title_prefix", True)
+    base = (base or "").strip() or _DEFAULT_BASE_TITLE
+    return f"{_TITLE_PREFIX}{base}" if use_prefix else base
 
 
 @router.post("/recommend", response_model=RecommendationResult, summary="自然语言生成歌单")
@@ -51,6 +60,7 @@ async def recommend(
     payload: RecommendRequest,
     rec_service: RecommendationServiceDep,
     playlist_service: PlaylistServiceDep,
+    store: ConfigStoreDep,
     session: SessionDep,
 ) -> RecommendationResult:
     result = await rec_service.recommend(
@@ -58,7 +68,8 @@ async def recommend(
     )
 
     if payload.create_playlist and result.songs:
-        name = payload.playlist_name or _default_playlist_name(payload.query)
+        base = payload.playlist_name or result.title or payload.query
+        name = _apply_title_prefix(store, base)
         song_ids = [s.id for s in result.songs]
         record = await playlist_service.create(
             session,
@@ -84,12 +95,14 @@ async def recommend(
 async def create_recommend_playlist(
     payload: CreatePlaylistRequest,
     playlist_service: PlaylistServiceDep,
+    store: ConfigStoreDep,
     session: SessionDep,
 ) -> PlaylistRef:
     """直接按当前推荐结果的 song_ids 在 Subsonic 创建歌单。
 
     与 ``/recommend?create_playlist=true`` 不同，这里**不会重新跑 LLM 推荐**，
     只是把用户已经看到的歌单落盘到 Subsonic，因此更快、且歌单内容一致。
+    歌单标题使用 AI 生成的 title（或前端传入的改名），并按用户偏好决定是否带「AI · 」前缀。
     """
     if not payload.song_ids:
         raise AppError(
@@ -97,7 +110,8 @@ async def create_recommend_playlist(
             code="invalid_argument",
             status_code=400,
         )
-    name = payload.name or _default_playlist_name(payload.query)
+    base = payload.name or payload.query
+    name = _apply_title_prefix(store, base)
     record = await playlist_service.create(
         session,
         name=name,

@@ -59,3 +59,21 @@ class LLMTestResult(BaseModel):
     model: str | None = None
     error: str | None = None
 
+
+class PreferencesIn(BaseModel):
+    """前端提交的用户偏好（全部可选，缺省表示不改动）。"""
+
+    playlist_title_prefix: bool | None = Field(
+        default=None,
+        description="AI 生成的歌单标题是否保留「AI · 」前缀，默认 true",
+    )
+
+
+class PreferencesOut(BaseModel):
+    """回显给前端的用户偏好。"""
+
+    playlist_title_prefix: bool = Field(
+        default=True,
+        description="AI 生成的歌单标题是否保留「AI · 」前缀",
+    )
+

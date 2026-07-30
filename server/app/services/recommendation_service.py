@@ -108,6 +108,8 @@ class RecommendationService:
                 )
             )
         total_duration = sum((s.duration or 0) for s in songs)
+        # 标题优先用 AI 生成的 title；解析失败/未生成时降级为 summary，再不行用原话
+        title = intent.title or intent.summary or query
         return RecommendationResult(
             query=query,
             intent=intent,
@@ -115,6 +117,7 @@ class RecommendationService:
             total_candidates=len(candidates),
             songs=songs,
             total_duration=total_duration,
+            title=title,
         )
 
     # ------------------------------------------------------------------ ① 意图解析

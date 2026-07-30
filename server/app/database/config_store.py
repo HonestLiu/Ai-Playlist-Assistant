@@ -20,6 +20,7 @@ logger = get_logger(__name__)
 _SUBSONIC_KEY = "subsonic"
 _LLM_KEY = "llm"
 _ONBOARDING_KEY = "onboarding"
+_PREFERENCES_KEY = "preferences"
 
 
 class ConfigStore(ABC):
@@ -66,6 +67,21 @@ class ConfigStore(ABC):
 
     def clear_onboarding(self) -> None:
         self.delete(_ONBOARDING_KEY)
+
+    # -- 用户偏好（如歌单标题是否带「AI · 」前缀） --
+    def get_preferences(self) -> dict[str, Any]:
+        value = self.get(_PREFERENCES_KEY)
+        return dict(value) if isinstance(value, dict) else {}
+
+    def set_preferences(self, value: dict[str, Any]) -> None:
+        self.set(_PREFERENCES_KEY, value)
+
+    def update_preferences(self, patch: dict[str, Any]) -> dict[str, Any]:
+        """合并式更新用户偏好，避免覆盖其它未提及的键。"""
+        data = self.get_preferences()
+        data.update(patch)
+        self.set_preferences(data)
+        return data
 
 
 class JsonFileConfigStore(ConfigStore):
