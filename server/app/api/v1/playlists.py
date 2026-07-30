@@ -29,6 +29,25 @@ class PlaylistDetailOut(PlaylistOut):
     songs: list[SongOut]
 
 
+class PlaylistSyncResult(BaseModel):
+    imported: int
+    updated: int
+    removed: int
+    total: int
+
+
+@router.post(
+    "/sync",
+    response_model=PlaylistSyncResult,
+    summary="从 Subsonic 服务器同步已有歌单",
+)
+async def sync_playlists(
+    playlist_service: PlaylistServiceDep, session: SessionDep
+) -> PlaylistSyncResult:
+    result = await playlist_service.sync_from_subsonic(session)
+    return PlaylistSyncResult(**result)
+
+
 @router.get("", response_model=list[PlaylistOut], summary="歌单列表")
 async def list_playlists(
     playlist_service: PlaylistServiceDep, session: SessionDep

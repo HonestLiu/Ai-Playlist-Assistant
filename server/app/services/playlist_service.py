@@ -71,6 +71,80 @@ class PlaylistService:
             select(Playlist).where(Playlist.name == name)
         ).first()
 
+    # ------------------------------------------------------------------ 服务器同步
+    async def sync_from_subsonic(self, session: Session) -> dict[str, int]:
+        """把 Subsonic 服务器上已有的歌单拉进本地库。
+
+        - 本地没有的（按 ``subsonic_id`` 匹配）→ 新建，``source="server"``；
+        - 已有但名称/歌曲数/时长有变化 → 拉详情更新（含歌曲列表）；
+        - ``source="server"`` 且服务器上已删除 → 本地同步删除
+          （AI/每日推荐歌单不动，避免误删本地元信息）。
+        """
+
+        config = self._sub.resolve()
+        imported = updated = removed = 0
+
+        async with SubsonicClient(config) as client:
+            remote = await client.get_playlists()
+            remote_ids = {p.id for p in remote}
+            local = {
+                r.subsonic_id: r for r in session.exec(select(Playlist)).all()
+            }
+
+            for summary in remote:
+                record = local.get(summary.id)
+                if record is None:
+                    detail = await client.get_playlist(summary.id)
+                    record = Playlist(
+                        subsonic_id=detail.id,
+                        name=detail.name,
+                        description=detail.comment,
+                        source="server",
+                        song_ids=list(detail.song_ids),
+                        song_count=detail.song_count or len(detail.song_ids),
+                        duration=detail.duration or 0,
+                    )
+                    if detail.created:
+                        record.created_at = detail.created
+                    session.add(record)
+                    imported += 1
+                elif (
+                    record.name != summary.name
+                    or record.song_count != summary.song_count
+                    # 该服务器摘要/详情接口的时长存在 ±1s 舍入误差，容忍 2s
+                    or abs(record.duration - summary.duration) > 2
+                ):
+                    detail = await client.get_playlist(summary.id)
+                    record.name = detail.name
+                    record.song_ids = list(detail.song_ids)
+                    record.song_count = detail.song_count or len(detail.song_ids)
+                    record.duration = detail.duration or 0
+                    if detail.comment is not None:
+                        record.description = detail.comment
+                    session.add(record)
+                    updated += 1
+
+        for sid, record in local.items():
+            if sid not in remote_ids and record.source == "server":
+                session.delete(record)
+                removed += 1
+
+        session.commit()
+        total = len(session.exec(select(Playlist)).all())
+        logger.info(
+            "歌单同步完成：新增 %d、更新 %d、移除 %d，本地共 %d 份",
+            imported,
+            updated,
+            removed,
+            total,
+        )
+        return {
+            "imported": imported,
+            "updated": updated,
+            "removed": removed,
+            "total": total,
+        }
+
     # ------------------------------------------------------------------ 更新
     async def update(
         self,
