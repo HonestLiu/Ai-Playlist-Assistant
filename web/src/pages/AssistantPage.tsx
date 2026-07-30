@@ -1,4 +1,4 @@
-import { Send, Sparkles } from "lucide-react";
+import { Loader2, Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { RecommendationCard } from "@/components/ai/RecommendationCard";
@@ -20,23 +20,76 @@ const EXAMPLES = [
   "燃向的动漫歌曲",
 ];
 
+/** 用户消息气泡（右对齐） */
+function UserBubble({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+/** 助手头像 */
+function AssistantAvatar() {
+  return (
+    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <Sparkles className="h-4 w-4" />
+    </div>
+  );
+}
+
+/** 助手「正在思考」气泡（左对齐，带打字动画） */
+function ThinkingBubble() {
+  return (
+    <div className="flex items-start gap-2">
+      <AssistantAvatar />
+      <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="animate-pulse">正在思考并挑选歌曲…</span>
+      </div>
+    </div>
+  );
+}
+
+/** 助手错误气泡（左对齐） */
+function ErrorBubble({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <AssistantAvatar />
+      <div className="rounded-2xl rounded-tl-sm border border-destructive/40 bg-destructive/5 px-4 py-2.5 text-sm text-destructive">
+        出错了：{message}
+      </div>
+    </div>
+  );
+}
+
 export function AssistantPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [createPlaylist, setCreatePlaylist] = useState(false);
+  // 进行中的用户提问：发送后立即上屏，配合「思考中」气泡形成对话流
+  const [pendingQuery, setPendingQuery] = useState<string | null>(null);
   const recommend = useRecommend();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [turns, recommend.isPending]);
+  }, [turns, pendingQuery, recommend.isPending, recommend.isError]);
 
   const run = async (query: string, withCreate: boolean) => {
-    const result = await recommend.mutateAsync({
-      query,
-      create_playlist: withCreate,
-    });
-    setTurns((prev) => [...prev, { query, result }]);
+    setPendingQuery(query);
+    try {
+      const result = await recommend.mutateAsync({
+        query,
+        create_playlist: withCreate,
+      });
+      setTurns((prev) => [...prev, { query, result }]);
+      setPendingQuery(null);
+    } catch {
+      // 保留 pendingQuery，让错误态也能显示用户提问；下次发送会被覆盖
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -57,6 +110,11 @@ export function AssistantPage() {
     );
   };
 
+  const errorMessage =
+    recommend.isError && recommend.error
+      ? (recommend.error as Error)?.message ?? "未知错误"
+      : null;
+
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col">
       <div className="mb-4">
@@ -71,7 +129,7 @@ export function AssistantPage() {
       <DailyMixCard />
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
-        {turns.length === 0 && (
+        {turns.length === 0 && !pendingQuery && (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
               还没有对话。试试下面的例子，或直接输入你的需求。
@@ -80,12 +138,8 @@ export function AssistantPage() {
         )}
 
         {turns.map((turn, i) => (
-          <div key={i} className="space-y-2">
-            <div className="flex justify-end">
-              <div className="max-w-[80%] rounded-2xl rounded-br-sm bg-primary px-4 py-2 text-sm text-primary-foreground">
-                {turn.query}
-              </div>
-            </div>
+          <div key={i} className="space-y-3">
+            <UserBubble text={turn.query} />
             <RecommendationCard
               result={turn.result}
               saved={!!turn.result.playlist}
@@ -94,19 +148,13 @@ export function AssistantPage() {
           </div>
         ))}
 
-        {recommend.isPending && (
-          <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-            正在思考并挑选歌曲…
+        {pendingQuery && (
+          <div className="space-y-3">
+            <UserBubble text={pendingQuery} />
+            {recommend.isPending && <ThinkingBubble />}
+            {errorMessage && <ErrorBubble message={errorMessage} />}
           </div>
         )}
-
-        {recommend.isError && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-            出错了：{(recommend.error as Error)?.message ?? "未知错误"}
-          </div>
-        )}
-
-        <div ref={bottomRef} />
       </div>
 
       <div className="mt-4 space-y-3">
