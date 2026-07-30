@@ -35,6 +35,17 @@ class SubsonicAuthError(SubsonicError):
     message = "Subsonic 用户名或密码错误"
 
 
+class SubsonicPermissionError(SubsonicError):
+    """账号已通过认证，但无权执行该操作（如删除歌曲需要管理员权限）。
+
+    对应 Subsonic 官方错误码 50（User is not authorized for the given operation）。
+    """
+
+    code = "subsonic_forbidden"
+    status_code = 403
+    message = "账号无权执行该操作（删除歌曲通常需要 Subsonic 管理员权限）"
+
+
 class SubsonicNotFoundError(SubsonicError):
     code = "subsonic_not_found"
     status_code = 404
@@ -55,7 +66,7 @@ _ERROR_CODE_MAP: dict[int, type[SubsonicError]] = {
     30: SubsonicUnavailableError,
     40: SubsonicAuthError,
     41: SubsonicAuthError,
-    50: SubsonicAuthError,
+    50: SubsonicPermissionError,
     60: SubsonicAuthError,
     70: SubsonicNotFoundError,
 }

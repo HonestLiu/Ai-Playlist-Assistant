@@ -149,10 +149,10 @@ function DuplicatesCard() {
     [data],
   );
 
-  // 数据加载/变化时，默认勾选全部可清理副本
+  // 数据加载/变化时，默认勾选全部可清理副本（注意：不要在这里清空 result，
+  // 否则删除后的刷新会立刻把成功/失败横幅抹掉，用户看不到结果）
   useEffect(() => {
     setSelected(new Set(allDupIds));
-    setResult(null);
   }, [allDupIds]);
 
   const toggle = (id: string) =>
@@ -196,7 +196,14 @@ function DuplicatesCard() {
               基于本地曲库分析「同一音轨多次出现」的疑似重复，可勾选后一键清理
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void refetch()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setResult(null);
+              void refetch();
+            }}
+          >
             重新扫描
           </Button>
         </div>
@@ -227,7 +234,7 @@ function DuplicatesCard() {
             </div>
 
             {result ? (
-              <p
+              <div
                 className={cn(
                   "rounded-md border px-3 py-2 text-sm",
                   result.failed.length === 0
@@ -235,12 +242,28 @@ function DuplicatesCard() {
                     : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
                 )}
               >
-                删除完成：成功 {result.deleted} 首
-                {result.failed.length > 0 ? `，失败 ${result.failed.length} 首` : ""}
-                {result.failed.length > 0
-                  ? `（失败多为权限不足或非管理员账号，可在 Subsonic 客户端手动处理）`
-                  : ""}
-              </p>
+                {result.failed.length === 0 ? (
+                  <p>
+                    删除完成：成功 {result.deleted} 首 ✅
+                    （这些歌曲已从本地曲库与 Subsonic 服务器移除）
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      删除完成：成功 {result.deleted} 首，失败 {result.failed.length} 首。
+                      失败的歌曲未被删除，仍列在下方。
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed">
+                      失败原因（前 {Math.min(3, result.failed.length)} 条）：
+                      {result.failed.slice(0, 3).map((f) => f.error).join("；")}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed">
+                      提示：Subsonic 拒绝删除通常是当前连接账号不是管理员。请在「设置」中用
+                      管理员账号重新连接 Subsonic 后再试；或到你常用的 Subsonic 客户端手动删除。
+                    </p>
+                  </>
+                )}
+              </div>
             ) : null}
 
             <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-1">
