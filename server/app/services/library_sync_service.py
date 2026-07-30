@@ -36,11 +36,22 @@ class LibrarySyncService:
     def __init__(self, settings_service: SubsonicSettingsService) -> None:
         self._settings_service = settings_service
 
-    async def sync(self, session: Session, *, mode: str = "full") -> models.SyncState:
+    async def sync(
+        self,
+        session: Session,
+        *,
+        mode: str = "full",
+        state: models.SyncState | None = None,
+    ) -> models.SyncState:
         """执行一次同步，返回同步任务记录。
 
         ``mode`` 为 ``full`` 时清空后整体写入；为 ``incremental`` 时当前退化为全量
         （服务器不支持增量），仅记录日志，不抛错。
+
+        ``state`` 可传入一个**已持久化**的 ``SyncState``（通常是端点预先写入的
+        ``queued`` 记录），同步会复用它（``queued`` → ``running`` → ``success``/``failed``），
+        这样端点可以先拿到任务 id 立即返回，真正的工作交给后台任务。为 ``None`` 时
+        自动新建一条 ``running`` 记录（旧版同步路径，保持兼容）。
         """
 
         config = self._settings_service.resolve()
@@ -50,11 +61,15 @@ class LibrarySyncService:
         if mode not in ("full", "incremental"):
             raise ValueError(f"未知同步模式: {mode}")
 
-        # 先落一条 running 记录，前端轮询能看到「进行中」
-        state = models.SyncState(scope="library", status="running")
-        session.add(state)
-        session.commit()
-        session.refresh(state)
+        if state is None:
+            state = models.SyncState(scope="library", status="running")
+            session.add(state)
+            session.commit()
+            session.refresh(state)
+        else:
+            # 复用调用方预先写入的记录（如 queued），保证 id 不变、可被轮询
+            state.status = "running"
+            session.commit()
 
         started = time.perf_counter()
         try:
