@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Check, ListMusic, Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
 import { formatDuration } from "@/lib/utils";
 import type { RecommendationResult } from "@/types/ai";
 
@@ -24,17 +26,45 @@ export function RecommendationCard({
   result,
   saved,
   saving,
+  prefixEnabled = true,
   onSave,
 }: {
   result: RecommendationResult;
   saved?: boolean;
   saving?: boolean;
-  onSave?: () => void;
+  prefixEnabled?: boolean;
+  onSave?: (title: string) => void;
 }) {
   const { intent } = result;
+  // 歌单标题：默认用 AI 生成的 title，未生成时回退到用户原话
+  const [titleDraft, setTitleDraft] = useState(result.title || result.query);
+
+  // 跨对话恢复（localStorage 历史里可能已保存的歌单）时保持与结果一致
+  useEffect(() => {
+    if (!saved) setTitleDraft(result.title || result.query);
+  }, [result.title, result.query, saved]);
+
+  const previewName = `${prefixEnabled ? "AI · " : ""}${titleDraft.trim() || "未命名歌单"}`;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex flex-col gap-1.5">
+        <Label htmlFor="playlist-title" className="text-xs text-muted-foreground">
+          歌单标题
+        </Label>
+        <Input
+          id="playlist-title"
+          value={titleDraft}
+          disabled={saved}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          className="font-medium"
+        />
+        <p className="text-xs text-muted-foreground">
+          创建到 Subsonic 时显示为：
+          <span className="ml-1 font-medium text-foreground">{previewName}</span>
+        </p>
+      </div>
+
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         {intent.language?.map((l) => (
           <Chip key={`lang-${l}`}>{LANG_LABEL[l] ?? l}</Chip>
@@ -81,19 +111,19 @@ export function RecommendationCard({
         ))}
       </ol>
 
-      {onSave && (
+      {saved && result.playlist ? (
+        <p className="mt-4 flex items-center gap-1.5 text-sm text-[var(--success)]">
+          <Check className="h-4 w-4" /> 已创建到 Subsonic 歌单「{result.playlist.name}」
+        </p>
+      ) : onSave ? (
         <div className="mt-4 flex justify-end">
           <Button
             size="sm"
-            variant={saved ? "outline" : "default"}
-            onClick={onSave}
-            disabled={saved || saving}
+            variant="default"
+            onClick={() => onSave(titleDraft.trim() || result.query)}
+            disabled={saving}
           >
-            {saved ? (
-              <>
-                <Check className="mr-1.5 h-4 w-4" /> 已创建到 Subsonic
-              </>
-            ) : saving ? (
+            {saving ? (
               <>
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> 创建中…
               </>
@@ -104,7 +134,7 @@ export function RecommendationCard({
             )}
           </Button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

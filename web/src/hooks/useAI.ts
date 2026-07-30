@@ -107,3 +107,15 @@ export function useTestLLMConfig() {
     mutationFn: (body: import("@/types/ai").LLMConfigIn) => aiApi.testLLMConfig(body),
   });
 }
+
+export function usePreferences() {
+  return useQuery({ queryKey: aiKeys.preferences, queryFn: aiApi.getPreferences });
+}
+
+export function useSavePreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: import("@/types/ai").PreferencesIn) => aiApi.savePreferences(body),
+    onSuccess: (data) => qc.setQueryData(aiKeys.preferences, data),
+  });
+}

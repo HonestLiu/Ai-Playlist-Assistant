@@ -83,7 +83,17 @@ export interface RecommendationResult {
   total_candidates: number;
   songs: RecommendedSong[];
   total_duration: number;
+  title: string | null;
   playlist: PlaylistRef | null;
+}
+
+/** 用户偏好（如歌单标题是否带「AI · 」前缀）。 */
+export interface PreferencesOut {
+  playlist_title_prefix: boolean;
+}
+
+export interface PreferencesIn {
+  playlist_title_prefix?: boolean;
 }
 
 /** 把已有推荐结果落盘到 Subsonic 歌单的请求体（不重新生成）。 */

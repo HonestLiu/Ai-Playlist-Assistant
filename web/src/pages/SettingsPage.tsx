@@ -18,7 +18,7 @@ import {
   useSubsonicConfig,
   useTestConnection,
 } from "@/hooks/useSubsonic";
-import { useLLMConfig, useSaveLLMConfig, useTestLLMConfig } from "@/hooks/useAI";
+import { useLLMConfig, usePreferences, useSaveLLMConfig, useSavePreferences, useTestLLMConfig } from "@/hooks/useAI";
 import { useChangePassword, useSession } from "@/hooks/useAuth";
 import { HttpError } from "@/services/http";
 import type { ConnectionStatus, SubsonicConfigIn } from "@/types/api";
@@ -205,8 +205,47 @@ export function SettingsPage() {
       </Card>
 
       <LLMSettingsCard />
+      <PreferencesCard />
       <AccountCard />
     </div>
+  );
+}
+
+function PreferencesCard() {
+  const prefs = usePreferences();
+  const save = useSavePreferences();
+  const [prefixEnabled, setPrefixEnabled] = useState(true);
+
+  useEffect(() => {
+    if (prefs.data) setPrefixEnabled(prefs.data.playlist_title_prefix);
+  }, [prefs.data]);
+
+  const toggle = async (value: boolean) => {
+    setPrefixEnabled(value);
+    try {
+      await save.mutateAsync({ playlist_title_prefix: value });
+    } catch {
+      setPrefixEnabled(!value); // 保存失败则回滚
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>偏好</CardTitle>
+          <CardDescription>歌单标题与界面相关的小设置</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <Toggle
+          label="歌单标题保留「AI · 」前缀"
+          description="开启时，AI 生成的歌单会命名为「AI · 标题」；关闭后直接使用 AI 生成的标题（如「深夜书房 BGM」）"
+          checked={prefixEnabled}
+          onCheckedChange={(v) => void toggle(v)}
+        />
+      </CardContent>
+    </Card>
   );
 }
 

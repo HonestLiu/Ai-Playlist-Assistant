@@ -13,7 +13,7 @@ import { RecommendationCard } from "@/components/ai/RecommendationCard";
 import { DailyMixCard } from "@/components/ai/DailyMixCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useCreatePlaylist, useRecommend } from "@/hooks/useAI";
+import { useCreatePlaylist, usePreferences, useRecommend } from "@/hooks/useAI";
 import { HttpError } from "@/services/http";
 import type { RecommendationResult } from "@/types/ai";
 
@@ -169,6 +169,9 @@ export function AssistantPage() {
 
   const recommend = useRecommend();
   const createMutation = useCreatePlaylist();
+  const preferences = usePreferences();
+  // 歌单标题前缀「AI · 」是否开启（默认开启），由用户在设置页决定
+  const prefixEnabled = preferences.data?.playlist_title_prefix ?? true;
   const bottomRef = useRef<HTMLDivElement>(null);
   const stageTimers = useRef<number[]>([]);
 
@@ -191,10 +194,14 @@ export function AssistantPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, pendingQuery, recommend.isPending, recommend.isError, feedback]);
 
-  /** 按当前歌单落盘到 Subsonic，返回歌单引用；失败抛错。 */
-  const createToSubsonic = async (query: string, result: RecommendationResult) => {
+  /** 按当前歌单落盘到 Subsonic，返回歌单引用；失败抛错。title 为基础标题（不含前缀）。 */
+  const createToSubsonic = async (
+    query: string,
+    result: RecommendationResult,
+    title: string,
+  ) => {
     const songIds = result.songs.map((s) => s.id);
-    return createMutation.mutateAsync({ query, song_ids: songIds });
+    return createMutation.mutateAsync({ query, song_ids: songIds, name: title });
   };
 
   const run = async (query: string, withCreate: boolean) => {
@@ -212,7 +219,7 @@ export function AssistantPage() {
       // 生成后若勾选了「直接创建」，立即创建（不重新生成）
       if (withCreate && result.songs.length > 0) {
         try {
-          const ref = await createToSubsonic(query, result);
+          const ref = await createToSubsonic(query, result, result.title ?? result.query);
           result = { ...result, playlist: ref };
           setFeedback({
             type: "success",
@@ -243,12 +250,12 @@ export function AssistantPage() {
     void run(q, createPlaylist);
   };
 
-  const handleSave = async (index: number, turn: Turn) => {
+  const handleSave = async (index: number, turn: Turn, title: string) => {
     if (savingIndex !== null) return;
     setSavingIndex(index);
     setFeedback(null);
     try {
-      const ref = await createToSubsonic(turn.query, turn.result);
+      const ref = await createToSubsonic(turn.query, turn.result, title);
       setTurns((prev) =>
         prev.map((t, i) =>
           i === index ? { ...t, result: { ...t.result, playlist: ref } } : t,
@@ -328,7 +335,8 @@ export function AssistantPage() {
               result={turn.result}
               saved={!!turn.result.playlist}
               saving={savingIndex === i}
-              onSave={() => void handleSave(i, turn)}
+              prefixEnabled={prefixEnabled}
+              onSave={(title) => void handleSave(i, turn, title)}
             />
           </div>
         ))}

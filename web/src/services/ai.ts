@@ -12,6 +12,8 @@ import type {
   PlaylistRef,
   PlaylistRenameIn,
   PlaylistSyncResult,
+  PreferencesIn,
+  PreferencesOut,
   RecommendationResult,
   SchedulerStatus,
   SchedulerTriggerResult,
@@ -48,12 +50,16 @@ export const aiApi = {
   getSchedulerStatus: () => request<SchedulerStatus>("/ai/scheduler/status"),
   triggerDailyMix: () =>
     request<SchedulerTriggerResult>("/ai/scheduler/trigger", { method: "POST" }),
+  getPreferences: () => request<PreferencesOut>("/settings/preferences"),
+  savePreferences: (body: PreferencesIn) =>
+    request<PreferencesOut>("/settings/preferences", { method: "PUT", body }),
 };
 
 export const aiKeys = {
   playlists: ["playlists"] as const,
   playlist: (id: number) => ["playlists", id] as const,
   llmConfig: ["settings", "llm"] as const,
+  preferences: ["settings", "preferences"] as const,
   dailyMix: ["daily-mix"] as const,
   schedulerStatus: ["scheduler", "status"] as const,
 };
