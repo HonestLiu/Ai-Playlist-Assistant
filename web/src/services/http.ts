@@ -34,6 +34,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     response = await fetch(`${API_BASE}${path}`, {
       method,
       signal,
+      // 会话是 HttpOnly Cookie，跨域部署（前后端不同源）时必须显式带上
+      credentials: "include",
       headers: body ? { "Content-Type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
     });
