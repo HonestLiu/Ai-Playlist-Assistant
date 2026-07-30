@@ -1,4 +1,4 @@
-import { Check, ListMusic, Sparkles } from "lucide-react";
+import { Check, ListMusic, Loader2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatDuration } from "@/lib/utils";
@@ -23,10 +23,12 @@ const LANG_LABEL: Record<string, string> = {
 export function RecommendationCard({
   result,
   saved,
+  saving,
   onSave,
 }: {
   result: RecommendationResult;
   saved?: boolean;
+  saving?: boolean;
   onSave?: () => void;
 }) {
   const { intent } = result;
@@ -81,10 +83,19 @@ export function RecommendationCard({
 
       {onSave && (
         <div className="mt-4 flex justify-end">
-          <Button size="sm" variant={saved ? "outline" : "default"} onClick={onSave} disabled={saved}>
+          <Button
+            size="sm"
+            variant={saved ? "outline" : "default"}
+            onClick={onSave}
+            disabled={saved || saving}
+          >
             {saved ? (
               <>
                 <Check className="mr-1.5 h-4 w-4" /> 已创建到 Subsonic
+              </>
+            ) : saving ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> 创建中…
               </>
             ) : (
               <>

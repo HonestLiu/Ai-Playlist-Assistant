@@ -1,6 +1,7 @@
 /** AI 推荐 / 歌单 / LLM 配置接口调用。 */
 import { request } from "@/services/http";
 import type {
+  CreatePlaylistBody,
   DailyMixRequest,
   DailyMixResult,
   LLMConfigIn,
@@ -8,6 +9,7 @@ import type {
   LLMTestResult,
   Playlist,
   PlaylistDetail,
+  PlaylistRef,
   PlaylistRenameIn,
   PlaylistSyncResult,
   RecommendationResult,
@@ -25,6 +27,9 @@ export interface RecommendVars {
 export const aiApi = {
   recommend: (body: RecommendVars) =>
     request<RecommendationResult>("/ai/recommend", { method: "POST", body }),
+  // 把已生成的推荐结果直接落盘到 Subsonic（不重新跑 LLM）
+  createPlaylist: (body: CreatePlaylistBody) =>
+    request<PlaylistRef>("/ai/recommend/playlist", { method: "POST", body }),
   dailyMix: (body: DailyMixRequest = {}) =>
     request<DailyMixResult>("/ai/daily-mix", { method: "POST", body }),
   listPlaylists: () => request<Playlist[]>("/playlists"),

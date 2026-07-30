@@ -86,6 +86,13 @@ export interface RecommendationResult {
   playlist: PlaylistRef | null;
 }
 
+/** 把已有推荐结果落盘到 Subsonic 歌单的请求体（不重新生成）。 */
+export interface CreatePlaylistBody {
+  query: string;
+  song_ids: string[];
+  name?: string;
+}
+
 export interface Playlist {
   id: number;
   subsonic_id: string;

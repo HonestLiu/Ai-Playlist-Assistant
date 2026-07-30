@@ -2,11 +2,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { aiApi, aiKeys, type RecommendVars } from "@/services/ai";
+import type { CreatePlaylistBody } from "@/types/ai";
 
 export function useRecommend() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: RecommendVars) => aiApi.recommend(vars),
+    onSuccess: () => qc.invalidateQueries({ queryKey: aiKeys.playlists }),
+  });
+}
+
+/** 把已生成的推荐结果直接创建为 Subsonic 歌单（不重新生成）。 */
+export function useCreatePlaylist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreatePlaylistBody) => aiApi.createPlaylist(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: aiKeys.playlists }),
   });
 }
