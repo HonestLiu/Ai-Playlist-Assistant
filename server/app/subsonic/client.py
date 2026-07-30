@@ -289,6 +289,33 @@ class SubsonicClient:
             raise SubsonicUnavailableError(f"封面获取失败 HTTP {response.status_code}")
         return response.content
 
+    async def get_stream_response(
+        self,
+        song_id: str,
+        *,
+        max_bit_rate: int | None = None,
+        range_header: str | None = None,
+    ) -> httpx.Response:
+        """返回 ``stream.view`` 的原始流式响应（已打开，需调用方释放）。
+
+        将浏览器的 ``Range`` 请求头转发给 Subsonic，实现拖动进度条分段播放。
+        """
+
+        params: dict[str, object] = {"id": song_id}
+        if max_bit_rate:
+            params["maxBitRate"] = max_bit_rate
+        url = f"{self._config.rest_base_url}/stream.view"
+        pairs: list[tuple[str, str]] = [
+            (k, self._encode_param(v)) for k, v in self._auth_params().items()
+        ]
+        for key, value in params.items():
+            pairs.append((key, self._encode_param(value)))
+        headers: dict[str, str] = {}
+        if range_header:
+            headers["Range"] = range_header
+        req = self._http.build_request("GET", url, params=pairs, headers=headers)
+        return await self._http.send(req, stream=True)
+
     # ------------------------------------------------------------------ 歌单
     async def get_playlists(self) -> list[SubsonicPlaylist]:
         """返回当前用户的歌单摘要列表。"""

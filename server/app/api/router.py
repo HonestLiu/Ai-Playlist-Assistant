@@ -4,12 +4,26 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import ai, albums, artists, library, playlists, settings, songs, subsonic, system
+from app.api.v1 import (
+    ai,
+    albums,
+    artists,
+    library,
+    play_history,
+    playlists,
+    settings,
+    songs,
+    stream,
+    subsonic,
+    system,
+)
 
 api_router = APIRouter()
 api_router.include_router(system.router)
 api_router.include_router(settings.router)
 api_router.include_router(subsonic.router)
+api_router.include_router(stream.router)
+api_router.include_router(play_history.router)
 api_router.include_router(library.router)
 api_router.include_router(artists.router)
 api_router.include_router(albums.router)
