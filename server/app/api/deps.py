@@ -16,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.database.config_store import ConfigStore, JsonFileConfigStore
 from app.database.engine import get_session
 from app.services.browse_service import BrowseService
+from app.services.daily_mix_service import DailyMixService
 from app.services.library_sync_service import LibrarySyncService
 from app.services.llm_settings_service import LLMSettingsService
 from app.services.playlist_service import PlaylistService
@@ -106,3 +107,13 @@ def get_recommendation_service(
 RecommendationServiceDep = Annotated[
     RecommendationService, Depends(get_recommendation_service)
 ]
+
+
+def get_daily_mix_service(
+    rec_service: RecommendationServiceDep,
+    playlist_service: PlaylistServiceDep,
+) -> DailyMixService:
+    return DailyMixService(rec_service, playlist_service)
+
+
+DailyMixServiceDep = Annotated[DailyMixService, Depends(get_daily_mix_service)]
