@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 # ============================================================
 # AI Playlist Assistant — 单镜像（API + Web）多架构构建
 # 支持平台：linux/amd64 / linux/arm64 (Apple Silicon) / linux/arm/v7
