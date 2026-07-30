@@ -1,0 +1,22 @@
+# 版本控制与工作区元数据
+.git
+.gitignore
+.workbuddy
+.DS_Store
+
+# 前端本地产物 / 依赖（镜像内重新构建）
+web/node_modules
+web/dist
+web/*.tsbuildinfo
+
+# 后端本地数据与缓存（含 SQLite / 运行时密钥，绝不进镜像）
+server/data
+server/.env
+**/__pycache__
+**/*.pyc
+**/.venv
+
+# 文档与 CI
+README.md
+Makefile
+.github
