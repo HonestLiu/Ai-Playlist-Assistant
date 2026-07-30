@@ -2,6 +2,7 @@ import { Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { RecommendationCard } from "@/components/ai/RecommendationCard";
+import { DailyMixCard } from "@/components/ai/DailyMixCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRecommend } from "@/hooks/useAI";
@@ -66,6 +67,8 @@ export function AssistantPage() {
           用自然语言描述场景、心情或需求，让 AI 从你的曲库挑歌、生成歌单。
         </p>
       </div>
+
+      <DailyMixCard />
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
         {turns.length === 0 && (

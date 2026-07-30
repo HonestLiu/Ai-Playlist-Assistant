@@ -1,14 +1,32 @@
-import { ListMusic, Trash2 } from "lucide-react";
+import { ListMusic, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { useDeletePlaylist, usePlaylists } from "@/hooks/useAI";
+import {
+  useDailyMix,
+  useDeletePlaylist,
+  usePlaylists,
+  useRenamePlaylist,
+} from "@/hooks/useAI";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDuration } from "@/lib/utils";
 
+const SOURCE_LABEL: Record<string, string> = {
+  daily_mix: "每日推荐",
+  ai: "AI",
+};
+
+const TODAY = new Date().toISOString().slice(0, 10);
+
 export function PlaylistsPage() {
   const { data, isLoading, isError } = usePlaylists();
   const del = useDeletePlaylist();
+  const rename = useRenamePlaylist();
+  const dailyMix = useDailyMix();
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">加载中…</p>;
@@ -17,53 +35,134 @@ export function PlaylistsPage() {
     return <p className="text-sm text-destructive">加载歌单失败。</p>;
   }
 
+  const startRename = (id: number, current: string) => {
+    setEditingId(id);
+    setEditName(current);
+  };
+  const commitRename = (id: number) => {
+    const name = editName.trim();
+    if (name) rename.mutate({ id, name });
+    setEditingId(null);
+  };
+
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-4">
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          <ListMusic className="h-5 w-5 text-primary" /> 歌单
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          AI 生成的歌单会同步到你的 Subsonic 服务器。
-        </p>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
+            <ListMusic className="h-5 w-5 text-primary" /> 歌单
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            AI 与每日推荐生成的歌单会同步到你的 Subsonic 服务器。
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => dailyMix.mutate({})}
+          disabled={dailyMix.isPending}
+        >
+          <Sparkles className="mr-1.5 h-4 w-4" />
+          {dailyMix.isPending ? "生成中…" : "生成今日推荐"}
+        </Button>
       </div>
 
       {!data || data.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            还没有歌单。去「AI 助手」用自然语言生成并创建一份吧。
+            还没有歌单。点右上角「生成今日推荐」，或去「AI 助手」用自然语言生成并创建一份。
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {data.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="flex items-center gap-4 py-4">
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/playlists/${p.id}`}
-                    className="block truncate text-sm font-medium hover:underline"
-                  >
-                    {p.name}
-                  </Link>
-                  <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {p.song_count} 首 · {formatDuration(p.duration)} · 来源 {p.source}
-                    {p.query ? ` · ${p.query}` : ""}
+          {data.map((p) => {
+            const isToday =
+              p.source === "daily_mix" && p.name.startsWith(`每日推荐 ${TODAY}`);
+            const editing = editingId === p.id;
+            const label = SOURCE_LABEL[p.source] ?? p.source;
+            return (
+              <Card
+                key={p.id}
+                className={isToday ? "border-primary/40" : undefined}
+              >
+                <CardContent className="flex items-center gap-3 py-4">
+                  <div className="min-w-0 flex-1">
+                    {editing ? (
+                      <input
+                        autoFocus
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename(p.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+                      />
+                    ) : (
+                      <Link
+                        to={`/playlists/${p.id}`}
+                        className="block truncate text-sm font-medium hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                    )}
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[11px]">
+                        {label}
+                      </span>
+                      <span>
+                        {p.song_count} 首 · {formatDuration(p.duration)}
+                      </span>
+                      {p.query ? <span className="truncate">· {p.query}</span> : null}
+                    </div>
                   </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive"
-                  disabled={del.isPending}
-                  onClick={() => del.mutate(p.id)}
-                  aria-label="删除歌单"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    {editing ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={rename.isPending}
+                          onClick={() => commitRename(p.id)}
+                        >
+                          保存
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingId(null)}
+                        >
+                          取消
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground"
+                          onClick={() => startRename(p.id, p.name)}
+                          aria-label="重命名歌单"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          disabled={del.isPending}
+                          onClick={() => del.mutate(p.id)}
+                          aria-label="删除歌单"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

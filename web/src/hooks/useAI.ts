@@ -11,6 +11,27 @@ export function useRecommend() {
   });
 }
 
+export function useDailyMix() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: import("@/types/ai").DailyMixRequest = {}) =>
+      aiApi.dailyMix(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: aiKeys.playlists });
+      qc.invalidateQueries({ queryKey: aiKeys.dailyMix });
+    },
+  });
+}
+
+export function useRenamePlaylist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      aiApi.renamePlaylist(id, { name }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: aiKeys.playlists }),
+  });
+}
+
 export function usePlaylists() {
   return useQuery({ queryKey: aiKeys.playlists, queryFn: aiApi.listPlaylists });
 }

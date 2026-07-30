@@ -31,6 +31,23 @@ export interface PlaylistRef {
   name: string;
 }
 
+export interface DailyMixRequest {
+  target_size?: number;
+}
+
+export interface DailyMixResult {
+  query: string;
+  theme: string;
+  recommendation: RecommendationResult;
+  playlist: PlaylistRef | null;
+  refreshed: boolean;
+  created: boolean;
+}
+
+export interface PlaylistRenameIn {
+  name: string;
+}
+
 export interface RecommendationResult {
   query: string;
   intent: PlaylistIntent;
