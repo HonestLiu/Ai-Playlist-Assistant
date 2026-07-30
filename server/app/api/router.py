@@ -18,6 +18,7 @@ from app.api.v1 import (
     stream,
     subsonic,
     system,
+    tools,
 )
 
 api_router = APIRouter()
@@ -34,3 +35,4 @@ api_router.include_router(albums.router)
 api_router.include_router(songs.router)
 api_router.include_router(ai.router)
 api_router.include_router(playlists.router)
+api_router.include_router(tools.router)

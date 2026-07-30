@@ -372,6 +372,11 @@ class SubsonicClient:
 
         await self._request("deletePlaylist.view", {"id": playlist_id})
 
+    async def delete_song(self, song_id: str) -> None:
+        """删除服务器上的歌曲文件（需管理员权限，操作不可逆）。"""
+
+        await self._request("deleteSong.view", {"id": song_id})
+
     # ------------------------------------------------------------------ 解析辅助
     @staticmethod
     def _encode_param(value: object) -> str:

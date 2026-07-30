@@ -11,6 +11,7 @@ import {
   Sparkles,
   Sun,
   UserRound,
+  Wrench,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
@@ -28,6 +29,7 @@ const navItems = [
   { to: "/artists", label: "艺术家", icon: Music2, end: false },
   { to: "/albums", label: "专辑", icon: Album, end: false },
   { to: "/songs", label: "歌曲", icon: Music, end: false },
+  { to: "/tools", label: "工具箱", icon: Wrench, end: false },
   { to: "/assistant", label: "AI 助手", icon: Sparkles, end: false },
   { to: "/playlists", label: "歌单", icon: ListMusic, end: false },
   { to: "/settings", label: "设置", icon: Settings, end: false },

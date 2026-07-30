@@ -17,6 +17,7 @@ import { PlaylistsPage } from "@/pages/PlaylistsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SetupPage } from "@/pages/SetupPage";
 import { SongsPage } from "@/pages/SongsPage";
+import { ToolsPage } from "@/pages/ToolsPage";
 import { HttpError } from "@/services/http";
 import { applyTheme, useThemeStore } from "@/stores/theme";
 
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="albums" element={<AlbumsPage />} />
               <Route path="albums/:id" element={<AlbumDetailPage />} />
               <Route path="songs" element={<SongsPage />} />
+              <Route path="tools" element={<ToolsPage />} />
               <Route path="assistant" element={<AssistantPage />} />
               <Route path="playlists" element={<PlaylistsPage />} />
               <Route path="playlists/:id" element={<PlaylistDetailPage />} />

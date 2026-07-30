@@ -138,6 +138,12 @@ export function DashboardPage() {
               📚 音乐库 · 同步与浏览艺术家 / 专辑 / 歌曲
             </Link>
             <Link
+              to="/tools"
+              className="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              🧰 工具箱 · 重复歌曲清理 / 歌单去重 / 信息缺失扫描
+            </Link>
+            <Link
               to="/settings"
               className="rounded-md border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
             >
