@@ -90,6 +90,16 @@ class SyncState(SQLModel, table=True):
     error: Optional[str] = None
 
 
+class PlayHistory(SQLModel, table=True):
+    """播放历史（前端在歌曲真正开始播放时写入一条）。用于 Daily Mix 个性化。"""
+
+    __tablename__ = "play_history"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    song_id: str = Field(index=True)
+    played_at: datetime = Field(default_factory=_now, index=True)
+
+
 class Playlist(SQLModel, table=True):
     """本地记录的 AI 创建的歌单（Subsonic 侧另存一份，二者通过 subsonic_id 关联）。"""
 

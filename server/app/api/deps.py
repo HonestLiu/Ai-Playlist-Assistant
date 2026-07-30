@@ -19,6 +19,7 @@ from app.services.browse_service import BrowseService
 from app.services.daily_mix_service import DailyMixService
 from app.services.library_sync_service import LibrarySyncService
 from app.services.llm_settings_service import LLMSettingsService
+from app.services.play_history_service import PlayHistoryService
 from app.services.playlist_service import PlaylistService
 from app.services.recommendation_service import RecommendationService
 from app.services.settings_service import SubsonicSettingsService
@@ -95,6 +96,13 @@ def get_playlist_service(
 
 
 PlaylistServiceDep = Annotated[PlaylistService, Depends(get_playlist_service)]
+
+
+def get_play_history_service() -> PlayHistoryService:
+    return PlayHistoryService()
+
+
+PlayHistoryServiceDep = Annotated[PlayHistoryService, Depends(get_play_history_service)]
 
 
 def get_recommendation_service(
